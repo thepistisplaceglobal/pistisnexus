@@ -192,11 +192,31 @@ export function Login() {
                           profileError.message?.toLowerCase().includes('duplicate') || 
                           profileError.message?.toLowerCase().includes('already exists');
                           
-      if (!isDuplicate) {
+      if (isDuplicate) {
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({
+            email: regData.email,
+            full_name: regData.fullName,
+            role: regData.role,
+            country: regData.country,
+            branch_name: regData.branchName,
+            unit_name: regData.unitName,
+            status: 'PENDING'
+          })
+          .eq('id', signUpData.user.id);
+          
+        if (updateError) {
+          console.error("Profile update error during fallback:", updateError);
+          setErrorMsg(`Setup failed: ${updateError.message}. Please contact administration.`);
+          setIsLoading(false);
+          return;
+        }
+      } else {
         console.warn("Profile creation error:", profileError);
         const { data: existingProfile } = await supabase.from('profiles').select('id').eq('id', signUpData.user.id).single();
         if (!existingProfile) {
-          setErrorMsg(`${profileError.message}. Please contact your administrator to set up the registration rules correctly.`);
+          setErrorMsg(`${profileError.message}. Please contact church administration.`);
           setIsLoading(false);
           return;
         }
@@ -363,11 +383,11 @@ export function Login() {
 
                      <div className="flex flex-col gap-2.5 max-h-[320px] overflow-y-auto pr-1">
                         {[
-                          { key: 'GLOBAL_ADMIN', name: 'Global Administrator', desc: 'HQ administration, ministry settings, leader account approvals. (Limit: 5)' },
-                          { key: 'BRANCH_ADMIN', name: 'Branch Administrator', desc: 'Review branch metrics, upload reports, and post branch updates. (Limit: 2)' },
-                          { key: 'DEPT_LEADER', name: 'Departmental Leader', desc: 'Manage metrics and submit weekly department stats.' },
-                          { key: 'CELL_LEADER', name: 'Cell Group Leader', desc: 'Submit and view weekly home cell statistics and growth reports.' },
-                          { key: 'INTEREST_GROUP_LEADER', name: 'Interest Group Leader', desc: 'Submit statistics and manage community-focused groups.' }
+                          { key: 'GLOBAL_ADMIN', name: 'Global Administrator', desc: 'Ministry-wide coordination, master settings, leader approvals, and HQ global oversight. (Max 5 Global Admins)' },
+                          { key: 'BRANCH_ADMIN', name: 'Branch Administrator', desc: 'Coordinate branch activities, consolidate reports, and update local branch feeds. (Max 2 per Branch)' },
+                          { key: 'DEPT_LEADER', name: 'Departmental Leader', desc: 'Coordinate department activities and submit weekly departmental reports.' },
+                          { key: 'CELL_LEADER', name: 'Cell Group Leader', desc: 'Coordinate weekly cell meetings and submit home fellowship reports.' },
+                          { key: 'INTEREST_GROUP_LEADER', name: 'Interest Group Leader', desc: 'Organize community outreaches and report on group activities.' }
                         ].map((item) => (
                            <label 
                              key={item.key} 
@@ -451,7 +471,7 @@ export function Login() {
                                 onChange={(e) => setRegData({...regData, branchName: e.target.value})}
                               >
                                 <option value="" disabled className="bg-[#120524]">Select Branch</option>
-                                <option value="Uyo HQ" className="bg-[#120524]">Uyo (HQ)</option>
+                                <option value="Uyo (HQ)" className="bg-[#120524]">Uyo (HQ)</option>
                                 <option value="Calabar" className="bg-[#120524]">Calabar</option>
                                 <option value="Port Harcourt" className="bg-[#120524]">Port Harcourt</option>
                                 <option value="London" className="bg-[#120524]">London</option>
@@ -466,7 +486,7 @@ export function Login() {
                        <GlassCard className="p-4 border-amber-500/20 bg-amber-500/5 text-amber-200 text-xs flex gap-2.5 leading-relaxed">
                          <ShieldCheck className="w-5 h-5 shrink-0 text-amber-400 mt-0.5" />
                          <span>
-                           <strong>Global Administrator role selected.</strong> Users in this role oversee administration across all campuses. Your request will require manual approval from HQ leadership. No campus designation is needed.
+                           <strong>Global Administrator role selected.</strong> Users in this role oversee administration across all Church Expressions/Branches. Your request will require manual approval from HQ leadership. No Church Expressions/Branches designation is needed.
                          </span>
                        </GlassCard>
                      )}
