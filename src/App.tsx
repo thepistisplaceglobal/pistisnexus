@@ -1,0 +1,74 @@
+import React, { useEffect } from "react";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { AppLayout } from "./layout/AppLayout";
+import { Dashboard } from "./pages/Dashboard";
+import { Branches } from "./pages/Branches";
+import { Finance } from "./pages/Finance";
+import { Departments } from "./pages/Departments";
+import { HomeCells } from "./pages/HomeCells";
+import { InterestGroups } from "./pages/InterestGroups";
+import { Directory } from "./pages/Directory";
+import { Reports } from "./pages/Reports";
+import { Login } from "./pages/Login";
+import { Approvals } from "./pages/Approvals";
+import { Settings } from "./pages/Settings";
+import { useAppStore, Role } from "./store/useAppStore";
+import { InstallPrompt } from "@/components/ui/InstallPrompt";
+
+const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode, allowedRoles?: Role[] }) => {
+  const user = useAppStore((state) => state.user);
+  const location = useLocation();
+
+  if (!user) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  if (allowedRoles && !allowedRoles.includes(user.role)) {
+    // If user's role is not allowed to see this specific nested route, just send them to dashboard
+    return <Navigate to="/" replace />;
+  }
+
+  return <>{children}</>;
+};
+
+export default function App() {
+  const setIsOnline = useAppStore(state => state.setIsOnline);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [setIsOnline]);
+
+  return (
+    <>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          
+          {/* Protected Dashboard Routes */}
+          <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+            <Route index element={<Dashboard />} />
+            <Route path="branches" element={<ProtectedRoute allowedRoles={['GLOBAL_ADMIN']}><Branches /></ProtectedRoute>} />
+            <Route path="approvals" element={<ProtectedRoute allowedRoles={['GLOBAL_ADMIN', 'BRANCH_ADMIN']}><Approvals /></ProtectedRoute>} />
+            <Route path="finance" element={<Finance />} />
+            <Route path="departments" element={<ProtectedRoute allowedRoles={['GLOBAL_ADMIN', 'BRANCH_ADMIN']}><Departments /></ProtectedRoute>} />
+            <Route path="homecells" element={<ProtectedRoute allowedRoles={['GLOBAL_ADMIN', 'BRANCH_ADMIN', 'DEPT_LEADER']}><HomeCells /></ProtectedRoute>} />
+            <Route path="interest" element={<ProtectedRoute allowedRoles={['GLOBAL_ADMIN', 'BRANCH_ADMIN']}><InterestGroups /></ProtectedRoute>} />
+            <Route path="directory" element={<Directory />} />
+            <Route path="reports" element={<Reports />} />
+            <Route path="settings" element={<Settings />} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
+      <InstallPrompt />
+    </>
+  );
+}
