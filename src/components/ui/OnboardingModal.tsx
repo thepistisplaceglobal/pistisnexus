@@ -1,4 +1,4 @@
-import { useState, FormEvent } from "react";
+import { useState, FormEvent, useEffect } from "react";
 import { GlassCard } from "./GlassCard";
 import { useAppStore } from "@/store/useAppStore";
 
@@ -7,6 +7,15 @@ export function OnboardingModal() {
   
   const [baseMembership, setBaseMembership] = useState(user?.baseMembership || 50);
   const [unitStructureName, setUnitStructureName] = useState(user?.unitStructureName || "Units");
+
+  const isAdmin = user && (user.role === 'GLOBAL_ADMIN' || user.role === 'BRANCH_ADMIN');
+  const needsOnboarding = user && !user.hasCompletedOnboarding;
+
+  useEffect(() => {
+    if (needsOnboarding && isAdmin) {
+      updateUser({ hasCompletedOnboarding: true });
+    }
+  }, [needsOnboarding, isAdmin, updateUser]);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -17,14 +26,7 @@ export function OnboardingModal() {
     });
   };
 
-  if (!user || user.hasCompletedOnboarding) return null;
-
-  // Global and Branch Admins might not need this structured onboarding
-  if (user.role === 'GLOBAL_ADMIN' || user.role === 'BRANCH_ADMIN') {
-    // Auto-complete for admins
-    updateUser({ hasCompletedOnboarding: true });
-    return null;
-  }
+  if (!user || user.hasCompletedOnboarding || isAdmin) return null;
 
   const getEntityName = () => {
     if (user.role === 'DEPT_LEADER') return user.deptName || 'Department';

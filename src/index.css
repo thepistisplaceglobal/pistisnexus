@@ -72,7 +72,7 @@ html.light h3,
 html.light h4,
 html.light h5,
 html.light h6,
-html.light .text-white {
+html.light .text-white:not(button):not(button *):not(.keep-white) {
   color: #0f172a !important;
 }
 

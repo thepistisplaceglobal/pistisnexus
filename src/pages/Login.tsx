@@ -40,7 +40,7 @@ export function Login() {
     setErrorMsg("");
 
     // Developer bypass for initial Global Admin
-    if (loginData.email === "pistisglobal@gmail.com" && loginData.password === "Pistis%$0000") {
+    if (loginData.email === "pistisglobal@gmail.com" && loginData.password === "Pistis%2026") {
       login({
         id: "global-admin-master",
         email: "pistisglobal@gmail.com",
@@ -255,11 +255,23 @@ export function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-[#070110]">
+    <div className={`min-h-screen flex items-center justify-center p-4 relative overflow-hidden transition-colors duration-500 ${
+      theme === "light" ? "bg-slate-50 text-slate-900" : "bg-[#070110]"
+    }`}>
       {/* Visual background ambient layers */}
-      <div className="fixed -top-40 -left-40 w-[600px] h-[600px] bg-[#6320EE]/10 rounded-full blur-[140px] pointer-events-none" />
-      <div className="fixed -bottom-40 -right-40 w-[600px] h-[600px] bg-[#8A2BE2]/15 rounded-full blur-[140px] pointer-events-none" />
-      <div className="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.015)_1px,transparent_1px)] [background-size:24px_24px] pointer-events-none opacity-40" />
+      {theme === "light" ? (
+        <>
+          <div className="fixed -top-40 -left-40 w-[600px] h-[600px] bg-[#6d28d9]/5 rounded-full blur-[140px] pointer-events-none" />
+          <div className="fixed -bottom-40 -right-40 w-[600px] h-[600px] bg-[#4338ca]/5 rounded-full blur-[140px] pointer-events-none" />
+          <div className="absolute inset-0 bg-[radial-gradient(rgba(109,40,217,0.03)_1px,transparent_1px)] [background-size:24px_24px] pointer-events-none opacity-60" />
+        </>
+      ) : (
+        <>
+          <div className="fixed -top-40 -left-40 w-[600px] h-[600px] bg-[#6320EE]/10 rounded-full blur-[140px] pointer-events-none" />
+          <div className="fixed -bottom-40 -right-40 w-[600px] h-[600px] bg-[#8A2BE2]/15 rounded-full blur-[140px] pointer-events-none" />
+          <div className="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.015)_1px,transparent_1px)] [background-size:24px_24px] pointer-events-none opacity-40" />
+        </>
+      )}
 
       <div className="w-full max-w-md flex flex-col gap-6 z-10 animate-in fade-in slide-in-from-bottom-6 duration-1000">
         <div className="text-center flex flex-col items-center">
@@ -271,68 +283,94 @@ export function Login() {
               className="w-20 h-20 relative object-contain drop-shadow-[0_0_20px_rgba(120,81,169,0.5)] transform transition-transform group-hover:scale-105 duration-500" 
             />
           </div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-white mb-1 font-sans">
+          <h1 className={`text-3xl font-extrabold tracking-tight mb-1 font-sans ${theme === "light" ? "text-slate-900" : "text-white"}`}>
             Pistis Nexus
           </h1>
-          <p className="text-xs font-semibold text-[#B193FB] uppercase tracking-widest max-w-xs mx-auto">
+          <p className={`text-xs font-semibold uppercase tracking-widest max-w-xs mx-auto ${theme === "light" ? "text-royal-purple" : "text-[#B193FB]"}`}>
             {view === "LOGIN_SELECT" ? "The Pistis Place Administrative System" : "Leader Registration Request"}
           </p>
         </div>
 
         {view === "LOGIN_SELECT" ? (
           <div className="flex flex-col gap-4">
-            <GlassCard className="p-7 border-white/5 bg-[#120524]/50 backdrop-blur-md shadow-2xl relative overflow-hidden">
+            <GlassCard className={`p-7 shadow-2xl relative overflow-hidden border ${
+              theme === "light" 
+                ? "bg-white border-slate-200/80" 
+                : "border-white/5 bg-[#120524]/50 backdrop-blur-md"
+            }`}>
                {/* Elegant top color band */}
                <div className="absolute top-0 inset-x-0 h-[3px] bg-gradient-to-r from-royal-purple via-transparent to-emerald-500 opacity-60" />
 
                <div className="flex items-center justify-between mb-5 select-none">
-                 <h3 className="text-white font-bold text-sm flex items-center gap-2">
+                 <h3 className={`font-bold text-sm flex items-center gap-2 ${theme === "light" ? "text-slate-900" : "text-white"}`}>
                    <KeyRound className="w-4 h-4 text-royal-purple" />
                    Sign In to Your Account
                  </h3>
-                 <span className="text-[10px] bg-white/5 border border-white/10 text-lilac/75 px-2.5 py-1 rounded-full font-sans font-semibold">
+                 <span className={`text-[10px] px-2.5 py-1 rounded-full font-sans font-semibold border ${
+                   theme === "light" 
+                     ? "bg-royal-purple/5 border-royal-purple/15 text-royal-purple" 
+                     : "bg-white/5 border-white/10 text-lilac/75"
+                 }`}>
                    Ministry Admin Portal
                  </span>
                </div>
 
                <form onSubmit={handleLoginSubmit} className="flex flex-col gap-4">
                  {errorMsg && (
-                   <div className="bg-rose-500/10 border border-rose-500/20 text-rose-300 p-3.5 rounded-xl text-xs text-center font-medium leading-relaxed">
+                   <div className={`p-3.5 rounded-xl text-xs text-center font-medium leading-relaxed border ${
+                     theme === "light" 
+                       ? "bg-rose-50 border-rose-200 text-rose-700" 
+                       : "bg-rose-500/10 border border-rose-500/20 text-rose-300"
+                   }`}>
                       {errorMsg}
                    </div>
                  )}
                  
                  <div className="space-y-1.5">
-                    <label className="text-[11px] uppercase tracking-wider text-lilac/60 font-bold ml-1">Email Address</label>
+                    <label className={`text-[11px] uppercase tracking-wider font-bold ml-1 ${theme === "light" ? "text-slate-500" : "text-lilac/60"}`}>Email Address</label>
                     <div className="relative group/input">
-                      <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 group-focus-within/input:text-[#B193FB] transition-colors" />
+                      <Mail className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors ${
+                        theme === "light" ? "text-slate-400 group-focus-within/input:text-royal-purple" : "text-white/30 group-focus-within/input:text-[#B193FB]"
+                      }`} />
                       <input 
                         type="email" 
                         placeholder="e.g. name@pistisnexus.com" 
                         required 
-                        className="w-full bg-black/45 border border-white/10 rounded-xl py-3 pl-11 pr-4 text-white text-sm focus:outline-none focus:border-royal-purple focus:ring-1 focus:ring-royal-purple/40 placeholder:text-white/20 transition-all font-sans" 
+                        className={`w-full rounded-xl py-3 pl-11 pr-4 text-sm focus:outline-none focus:ring-1 transition-all ${
+                          theme === "light" 
+                            ? "bg-slate-50 border border-slate-300 text-slate-950 focus:border-royal-purple focus:ring-royal-purple/40 placeholder:text-slate-400" 
+                            : "bg-black/45 border border-white/10 text-white focus:border-royal-purple focus:ring-royal-purple/40 placeholder:text-white/20"
+                        }`} 
                         value={loginData.email} 
                         onChange={(e) => setLoginData({...loginData, email: e.target.value})} 
                       />
                     </div>
-                 </div>
+                  </div>
                  
                  <div className="space-y-1.5">
-                    <label className="text-[11px] uppercase tracking-wider text-lilac/60 font-bold ml-1">Password</label>
+                    <label className={`text-[11px] uppercase tracking-wider font-bold ml-1 ${theme === "light" ? "text-slate-500" : "text-lilac/60"}`}>Password</label>
                     <div className="relative group/input">
-                      <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 group-focus-within/input:text-[#B193FB] transition-colors" />
+                      <Lock className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors ${
+                        theme === "light" ? "text-slate-400 group-focus-within/input:text-royal-purple" : "text-white/30 group-focus-within/input:text-[#B193FB]"
+                      }`} />
                       <input 
                         type={showLoginPassword ? "text" : "password"} 
                         placeholder="••••••••••••" 
                         required 
-                        className="w-full bg-black/45 border border-white/10 rounded-xl py-3 pl-11 pr-11 text-white text-sm focus:outline-none focus:border-royal-purple focus:ring-1 focus:ring-royal-purple/40 placeholder:text-white/20 transition-all font-sans" 
+                        className={`w-full rounded-xl py-3 pl-11 pr-11 text-sm focus:outline-none focus:ring-1 transition-all ${
+                          theme === "light" 
+                            ? "bg-slate-50 border border-slate-300 text-slate-950 focus:border-royal-purple focus:ring-royal-purple/40 placeholder:text-slate-400" 
+                            : "bg-black/45 border border-white/10 text-white focus:border-royal-purple focus:ring-royal-purple/40 placeholder:text-white/20"
+                        }`} 
                         value={loginData.password} 
                         onChange={(e) => setLoginData({...loginData, password: e.target.value})} 
                       />
                       <button 
                         type="button" 
                         onClick={() => setShowLoginPassword(!showLoginPassword)} 
-                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/30 hover:text-white transition-colors cursor-pointer"
+                        className={`absolute right-3.5 top-1/2 -translate-y-1/2 transition-colors cursor-pointer ${
+                          theme === "light" ? "text-slate-400 hover:text-slate-600" : "text-white/30 hover:text-white"
+                        }`}
                       >
                         {showLoginPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
@@ -342,24 +380,30 @@ export function Login() {
                  <button 
                    type="submit" 
                    disabled={isLoading} 
-                   className="mt-3 w-full flex justify-center items-center gap-2 bg-royal-purple hover:bg-royal-purple/95 active:scale-[0.98] text-white px-5 py-3 rounded-xl font-bold text-sm disabled:opacity-50 transition-all cursor-pointer shadow-lg shadow-royal-purple/20"
+                   className="mt-3 w-full flex justify-center items-center gap-2 bg-royal-purple hover:bg-royal-purple/95 active:scale-[0.98] text-white px-5 py-3 rounded-xl font-bold text-sm disabled:opacity-50 transition-all cursor-pointer shadow-lg shadow-royal-purple/20 keep-white"
                  >
                     {isLoading ? "Verifying details..." : "Sign In"}
                  </button>
                </form>
 
                {/* Access branding footer */}
-               <div className="mt-5 pt-4 border-t border-white/5 text-center text-xs">
-                 <p className="text-lilac/45 text-[11px]">The Pistis Place Global</p>
+               <div className={`mt-5 pt-4 border-t text-center text-xs ${
+                 theme === "light" ? "border-slate-100" : "border-white/5"
+               }`}>
+                 <p className={`text-[11px] ${theme === "light" ? "text-slate-400" : "text-lilac/45"}`}>{theme === "light" ? "The Pistis Place Global" : "The Pistis Place Global"}</p>
                </div>
             </GlassCard>
 
             <div className="text-center mt-1">
-              <p className="text-xs text-lilac/60">
+              <p className={`text-xs ${theme === "light" ? "text-slate-600" : "text-lilac/60"}`}>
                 Are you a new Global or Branch Admin, Team Lead, Cell Leader or Interest Group Leader?{" "}
                 <button 
                   onClick={() => { setView("REGISTER"); setStep(1); setErrorMsg(""); }}
-                  className="text-emerald-400 hover:text-emerald-300 font-bold underline cursor-pointer ml-1 transition-colors"
+                  className={`font-semibold underline cursor-pointer ml-1 transition-colors ${
+                    theme === "light" 
+                      ? "text-royal-purple hover:text-royal-purple/80" 
+                      : "text-emerald-400 hover:text-emerald-300"
+                  }`}
                 >
                   Register your account
                 </button>
@@ -367,35 +411,39 @@ export function Login() {
             </div>
           </div>
         ) : (
-          <GlassCard className="p-7 border-white/5 bg-[#120524]/50 backdrop-blur-md shadow-2xl relative overflow-hidden">
+          <GlassCard className={`p-7 shadow-2xl relative overflow-hidden border ${
+            theme === "light" 
+              ? "bg-white border-slate-200/80" 
+              : "border-white/5 bg-[#120524]/50 backdrop-blur-md"
+          }`}>
             {/* Elegant top color band */}
             <div className="absolute top-0 inset-x-0 h-[3px] bg-gradient-to-r from-emerald-500 via-royal-purple to-[#4B0082] opacity-60" />
 
             {!isSubmitted ? (
                <form onSubmit={submitRegistration} className="flex flex-col gap-5">
                  {errorMsg && (
-                   <div className="bg-rose-500/10 border border-rose-500/20 text-rose-300 p-3.5 rounded-xl text-xs text-center font-medium leading-relaxed">
+                   <div className={`${theme === "light" ? "bg-rose-50 border border-rose-200 text-rose-700" : "bg-rose-500/10 border border-rose-500/20 text-rose-300"} p-3.5 rounded-xl text-xs text-center font-medium leading-relaxed`}>
                       {errorMsg}
                    </div>
                  )}
 
                  {/* Stepper progress indicator */}
-                 <div className="flex items-center justify-between pb-3 border-b border-white/5 mb-2 select-none">
+                 <div className={`flex items-center justify-between pb-3 border-b mb-2 select-none ${theme === "light" ? "border-slate-100" : "border-white/5"}`}>
                    <div className="flex items-center gap-1">
                      {[1, 2, 3].map((s) => (
                        <span 
                          key={s} 
                          className={`h-1.5 rounded-full transition-all duration-300 ${
                            step === s 
-                             ? "w-8 bg-[#B193FB]" 
+                             ? (theme === "light" ? "w-8 bg-royal-purple" : "w-8 bg-[#B193FB]") 
                              : step > s 
                              ? "w-2.5 bg-emerald-400" 
-                             : "w-1.5 bg-white/10"
+                             : (theme === "light" ? "w-1.5 bg-slate-200 border border-slate-300/45" : "w-1.5 bg-white/10")
                          }`} 
                        />
                      ))}
                    </div>
-                   <span className="text-[10px] font-bold text-lilac uppercase tracking-widest bg-white/5 px-2.5 py-1 rounded-md">
+                    <span className={`text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-md ${theme === "light" ? "bg-slate-100 text-slate-600 border border-slate-200" : "bg-white/5 text-lilac"}`}>
                      Step {step} of 3
                    </span>
                  </div>
@@ -404,8 +452,8 @@ export function Login() {
                  {step === 1 && (
                    <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
                      <div>
-                       <h3 className="text-white font-bold text-base">Select Your Ministry Role</h3>
-                       <p className="text-[11px] text-lilac/60 mt-0.5">Please choose the option that matches your official ministry assignment.</p>
+                       <h3 className={`font-bold text-base ${theme === "light" ? "text-slate-900" : "text-white"}`}>Select Your Ministry Role</h3>
+                       <p className={`text-[11px] mt-0.5 ${theme === "light" ? "text-slate-500" : "text-lilac/60"}`}>Please choose the option that matches your official ministry assignment.</p>
                      </div>
 
                      <div className="flex flex-col gap-2.5 max-h-[320px] overflow-y-auto pr-1">
@@ -420,8 +468,8 @@ export function Login() {
                              key={item.key} 
                              className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
                                regData.role === item.key 
-                                 ? 'bg-royal-purple/20 border-royal-purple/50 shadow-md shadow-royal-purple/5' 
-                                 : 'bg-black/30 border-white/5 hover:bg-white/5 hover:border-white/10'
+                                 ? (theme === "light" ? 'bg-royal-purple/5 border-royal-purple/40 shadow-sm' : 'bg-royal-purple/20 border-royal-purple/50 shadow-md shadow-royal-purple/5') 
+                                 : (theme === "light" ? 'bg-slate-50 border-slate-200 hover:bg-slate-100 hover:border-slate-300' : 'bg-black/30 border-white/5 hover:bg-white/5 hover:border-white/10')
                              }`}
                            >
                              <input 
@@ -430,20 +478,20 @@ export function Login() {
                                value={item.key} 
                                checked={regData.role === item.key} 
                                onChange={(e) => setRegData({...regData, role: e.target.value as Role})} 
-                               className="mt-1 text-royal-purple focus:ring-royal-purple/40 bg-transparent border-white/20 cursor-pointer text-royal-purple" 
+                               className={`mt-1 text-royal-purple focus:ring-royal-purple/40 bg-transparent cursor-pointer ${theme === "light" ? "border-slate-300" : "border-white/20"}`} 
                              />
                              <div className="flex-1 ml-0.5">
-                               <p className="text-white/95 font-bold text-xs tracking-wide">{item.name}</p>
-                               <span className="block text-[10px] text-lilac/60 leading-relaxed mt-0.5">{item.desc}</span>
+                               <p className={`font-bold text-xs tracking-wide ${theme === "light" ? "text-slate-800" : "text-white/95"}`}>{item.name}</p>
+                               <span className={`block text-[10px] leading-relaxed mt-0.5 ${theme === "light" ? "text-slate-500" : "text-lilac/60"}`}>{item.desc}</span>
                              </div>
                            </label>
                         ))}
                      </div>
-                     <div className="flex justify-between items-center mt-5 pt-3 border-t border-white/5">
+                     <div className={`flex justify-between items-center mt-5 pt-3 border-t ${theme === "light" ? "border-slate-100" : "border-white/5"}`}>
                         <button 
                           type="button" 
                           onClick={() => { setView("LOGIN_SELECT"); setErrorMsg(""); }} 
-                          className="text-xs text-lavender hover:text-white uppercase tracking-wider font-bold cursor-pointer transition-colors"
+                          className={`text-xs uppercase tracking-wider font-bold cursor-pointer transition-colors ${theme === "light" ? "text-slate-500 hover:text-slate-800" : "text-lavender hover:text-white"}`}
                         >
                           Cancel
                         </button>
@@ -470,48 +518,48 @@ export function Login() {
                      {regData.role !== 'GLOBAL_ADMIN' && (
                         <>
                           <div className="space-y-1">
-                            <label className="text-[11px] text-lilac/70 uppercase tracking-wider font-bold ml-1">Country</label>
+                            <label className={`text-[11px] uppercase tracking-wider font-bold ml-1 ${theme === "light" ? "text-slate-500" : "text-lilac/70"}`}>Country</label>
                             <div className="relative">
-                              <Globe className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 pointer-events-none" />
+                              <Globe className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none ${theme === "light" ? "text-slate-400" : "text-white/40"}`} />
                               <select 
-                                className="w-full bg-black/45 border border-white/10 rounded-xl py-3 pl-10 pr-10 text-white text-sm focus:outline-none focus:border-royal-purple focus:ring-1 focus:ring-royal-purple/40 appearance-none cursor-pointer" 
+                                className={`w-full rounded-xl py-3 pl-10 pr-10 text-sm focus:outline-none focus:ring-1 appearance-none cursor-pointer transition-all ${theme === "light" ? "bg-slate-50 border border-slate-300 text-slate-900 focus:border-royal-purple focus:ring-royal-purple/40" : "bg-black/45 border border-white/10 text-white focus:border-royal-purple focus:ring-royal-purple/40"}`} 
                                 value={regData.country} 
                                 onChange={(e) => setRegData({...regData, country: e.target.value})}
                               >
-                                <option value="" disabled className="bg-[#120524]">Select Country</option>
-                                <option value="Nigeria" className="bg-[#120524]">Nigeria</option>
-                                <option value="United Kingdom" className="bg-[#120524]">United Kingdom</option>
-                                <option value="United States" className="bg-[#120524]">United States</option>
-                                <option value="Canada" className="bg-[#120524]">Canada</option>
+                                <option value="" disabled className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Select Country</option>
+                                <option value="Nigeria" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Nigeria</option>
+                                <option value="United Kingdom" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>United Kingdom</option>
+                                <option value="United States" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>United States</option>
+                                <option value="Canada" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Canada</option>
                               </select>
-                              <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-white/40 text-[10px]">▼</div>
+                              <div className={`absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-[10px] ${theme === "light" ? "text-slate-400" : "text-white/40"}`}>▼</div>
                             </div>
                           </div>
                           
                           <div className="space-y-1">
-                            <label className="text-[11px] text-lilac/70 uppercase tracking-wider font-bold ml-1">Branch Campus</label>
+                            <label className={`text-[11px] uppercase tracking-wider font-bold ml-1 ${theme === "light" ? "text-slate-500" : "text-lilac/70"}`}>Branch Campus</label>
                             <div className="relative">
-                              <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 pointer-events-none" />
+                              <MapPin className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none ${theme === "light" ? "text-slate-400" : "text-white/40"}`} />
                               <select 
-                                className="w-full bg-black/45 border border-white/10 rounded-xl py-3 pl-10 pr-10 text-white text-sm focus:outline-none focus:border-royal-purple focus:ring-1 focus:ring-royal-purple/40 appearance-none cursor-pointer" 
+                                className={`w-full rounded-xl py-3 pl-10 pr-10 text-sm focus:outline-none focus:ring-1 appearance-none cursor-pointer transition-all ${theme === "light" ? "bg-slate-50 border border-slate-300 text-slate-900 focus:border-royal-purple focus:ring-royal-purple/40" : "bg-black/45 border border-white/10 text-white focus:border-royal-purple focus:ring-royal-purple/40"}`} 
                                 value={regData.branchName} 
                                 onChange={(e) => setRegData({...regData, branchName: e.target.value})}
                               >
-                                <option value="" disabled className="bg-[#120524]">Select Branch</option>
-                                <option value="Uyo (HQ)" className="bg-[#120524]">Uyo (HQ)</option>
-                                <option value="Calabar" className="bg-[#120524]">Calabar</option>
-                                <option value="Port Harcourt" className="bg-[#120524]">Port Harcourt</option>
-                                <option value="London" className="bg-[#120524]">London</option>
+                                <option value="" disabled className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Select Branch</option>
+                                <option value="Uyo (HQ)" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Uyo (HQ)</option>
+                                <option value="Calabar" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Calabar</option>
+                                <option value="Port Harcourt" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Port Harcourt</option>
+                                <option value="London" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>London</option>
                               </select>
-                              <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-white/40 text-[10px]">▼</div>
+                              <div className={`absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-[10px] ${theme === "light" ? "text-slate-400" : "text-white/40"}`}>▼</div>
                             </div>
                           </div>
                         </>
                      )}
 
                      {regData.role === 'GLOBAL_ADMIN' && (
-                       <GlassCard className="p-4 border-amber-500/20 bg-amber-500/5 text-amber-200 text-xs flex gap-2.5 leading-relaxed">
-                         <ShieldCheck className="w-5 h-5 shrink-0 text-amber-400 mt-0.5" />
+                       <GlassCard className={`p-4 border text-xs flex gap-2.5 leading-relaxed ${theme === "light" ? "border-amber-200 bg-amber-50 text-amber-800" : "border-amber-505/20 bg-amber-500/5 text-amber-200"}`}>
+                         <ShieldCheck className={`w-5 h-5 shrink-0 mt-0.5 ${theme === "light" ? "text-amber-600" : "text-amber-400"}`} />
                          <span>
                            <strong>Global Administrator role selected.</strong> Users in this role oversee administration across all Church Expressions/Branches. Your request will require manual approval from HQ leadership. No Church Expressions/Branches designation is needed.
                          </span>
@@ -520,42 +568,42 @@ export function Login() {
 
                      {regData.role === 'DEPT_LEADER' && (
                           <div className="space-y-1">
-                            <label className="text-[11px] text-lilac/70 uppercase tracking-wider font-bold ml-1">Your Department</label>
+                            <label className={`text-[11px] uppercase tracking-wider font-bold ml-1 ${theme === "light" ? "text-slate-500" : "text-lilac/70"}`}>Your Department</label>
                             <div className="relative">
-                              <Building className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 pointer-events-none" />
+                              <Building className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none ${theme === "light" ? "text-slate-400" : "text-white/40"}`} />
                               <select 
-                                className="w-full bg-black/45 border border-white/10 rounded-xl py-3 pl-10 pr-10 text-white text-sm focus:outline-none focus:border-royal-purple focus:ring-1 focus:ring-royal-purple/40 appearance-none cursor-pointer"
+                                className={`w-full rounded-xl py-3 pl-10 pr-10 text-sm focus:outline-none focus:ring-1 appearance-none cursor-pointer transition-all ${theme === "light" ? "bg-slate-50 border border-slate-300 text-slate-900 focus:border-royal-purple focus:ring-royal-purple/40" : "bg-black/45 border border-white/10 text-white focus:border-royal-purple focus:ring-royal-purple/40"}`}
                                 value={regData.unitName}
                                 onChange={(e) => setRegData({...regData, unitName: e.target.value})}
                               >
-                                <option value="" disabled className="bg-[#120524]">Select Department</option>
-                                <option value="Media" className="bg-[#120524]">Media</option>
-                                <option value="The Living Portals (Choir)" className="bg-[#120524]">The Living Portals (Choir)</option>
-                                <option value="Technical" className="bg-[#120524]">Technical</option>
-                                <option value="Ushering" className="bg-[#120524]">Ushering</option>
-                                <option value="Pastoral Team / Greeters" className="bg-[#120524]">Pastoral Team / Greeters</option>
-                                <option value="Evangelism & Missions" className="bg-[#120524]">Evangelism & Missions</option>
-                                <option value="Welfare" className="bg-[#120524]">Welfare</option>
-                                <option value="Children’s Church" className="bg-[#120524]">Children’s Church</option>
-                                <option value="Teens Church" className="bg-[#120524]">Teens Church</option>
-                                <option value="Intercessory" className="bg-[#120524]">Intercessory</option>
-                                <option value="Protocol" className="bg-[#120524]">Protocol</option>
-                                <option value="Follow-up" className="bg-[#120524]">Follow-up</option>
+                                <option value="" disabled className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Select Department</option>
+                                <option value="Media" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Media</option>
+                                <option value="The Living Portals (Choir)" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>The Living Portals (Choir)</option>
+                                <option value="Technical" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Technical</option>
+                                <option value="Ushering" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Ushering</option>
+                                <option value="Pastoral Team / Greeters" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Pastoral Team / Greeters</option>
+                                <option value="Evangelism & Missions" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Evangelism & Missions</option>
+                                <option value="Welfare" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Welfare</option>
+                                <option value="Children’s Church" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Children’s Church</option>
+                                <option value="Teens Church" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Teens Church</option>
+                                <option value="Intercessory" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Intercessory</option>
+                                <option value="Protocol" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Protocol</option>
+                                <option value="Follow-up" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Follow-up</option>
                               </select>
-                              <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-white/40 text-[10px]">▼</div>
+                              <div className={`absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-[10px] ${theme === "light" ? "text-slate-400" : "text-white/40"}`}>▼</div>
                             </div>
                           </div>
                        )}
 
                        {['CELL_LEADER', 'INTEREST_GROUP_LEADER'].includes(regData.role) && (
                          <div className="space-y-1">
-                           <label className="text-[11px] text-lilac/70 uppercase tracking-wider font-bold ml-1">Specific Unit, Cell, or Group Name</label>
+                           <label className={`text-[11px] uppercase tracking-wider font-bold ml-1 ${theme === "light" ? "text-slate-500" : "text-lilac/70"}`}>Specific Unit, Cell, or Group Name</label>
                            <div className="relative">
-                             <Building className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 pointer-events-none" />
+                             <Building className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none ${theme === "light" ? "text-slate-400" : "text-white/40"}`} />
                              <input 
                                type="text" 
                                placeholder={`e.g. Hope Center, Teens Fellowship B`} 
-                               className="w-full bg-black/45 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white text-sm focus:outline-none focus:border-royal-purple focus:ring-1 focus:ring-royal-purple/40 placeholder:text-white/20"
+                               className={`w-full rounded-xl py-3 pl-10 pr-4 text-sm focus:outline-none focus:ring-1 transition-all ${theme === "light" ? "bg-slate-50 border border-slate-300 text-slate-900 focus:border-royal-purple focus:ring-royal-purple/40 placeholder:text-slate-400" : "bg-black/45 border border-white/10 text-white focus:border-royal-purple focus:ring-royal-purple/40 placeholder:text-white/20"}`}
                                value={regData.unitName}
                                onChange={(e) => setRegData({...regData, unitName: e.target.value})}
                              />
@@ -563,11 +611,11 @@ export function Login() {
                          </div>
                       )}
 
-                      <div className="flex justify-between items-center mt-5 pt-3 border-t border-white/5">
+                      <div className={`flex justify-between items-center mt-5 pt-3 border-t ${theme === "light" ? "border-slate-100" : "border-white/5"}`}>
                         <button 
                           type="button" 
                           onClick={prevStep} 
-                          className="flex items-center gap-1 text-xs text-lavender hover:text-white uppercase tracking-wider font-bold cursor-pointer transition-colors"
+                          className={`flex items-center gap-1 text-xs uppercase tracking-wider font-bold cursor-pointer transition-colors ${theme === "light" ? "text-slate-500 hover:text-slate-800" : "text-lavender hover:text-white"}`}
                         >
                           <ArrowLeft className="w-3.5 h-3.5" /> Back
                         </button>
@@ -587,65 +635,65 @@ export function Login() {
                  {step === 3 && (
                    <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300 font-sans">
                      <div>
-                       <h3 className="text-white font-bold text-base">Account Details</h3>
-                       <p className="text-[11px] text-lilac/60 mt-0.5">Enter your contact details and set up a secure access password.</p>
+                       <h3 className={`font-bold text-base ${theme === "light" ? "text-slate-900" : "text-white"}`}>Account Details</h3>
+                       <p className={`text-[11px] mt-0.5 ${theme === "light" ? "text-slate-500" : "text-lilac/60"}`}>Enter your contact details and set up a secure access password.</p>
                      </div>
                      
                      <div className="space-y-1">
-                        <label className="text-[11px] text-lilac/70 uppercase tracking-wider font-bold ml-1">Full Name</label>
+                        <label className={`text-[11px] uppercase tracking-wider font-bold ml-1 ${theme === "light" ? "text-slate-500" : "text-lilac/70"}`}>Full Name</label>
                         <div className="relative">
-                          <UserIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+                          <UserIcon className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 ${theme === "light" ? "text-slate-400" : "text-white/40"}`} />
                           <input 
                             type="text" 
                             placeholder="e.g. Samuel Adebayo" 
                             required 
-                            className="w-full bg-black/45 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white text-sm focus:outline-none focus:border-royal-purple focus:ring-1 focus:ring-royal-purple/40 placeholder:text-white/20" 
+                            className={`w-full rounded-xl py-3 pl-10 pr-4 text-sm focus:outline-none focus:ring-1 transition-all ${theme === "light" ? "bg-slate-50 border border-slate-300 text-slate-900 focus:border-royal-purple focus:ring-royal-purple/40 placeholder:text-slate-400" : "bg-black/45 border border-white/10 text-white focus:border-royal-purple focus:ring-royal-purple/40 placeholder:text-white/20"}`} 
                             value={regData.fullName} 
                             onChange={(e) => setRegData({...regData, fullName: e.target.value})} 
                           />
                         </div>
                      </div>
                      <div className="space-y-1">
-                        <label className="text-[11px] text-lilac/70 uppercase tracking-wider font-bold ml-1">Email Address</label>
+                        <label className={`text-[11px] uppercase tracking-wider font-bold ml-1 ${theme === "light" ? "text-slate-500" : "text-lilac/70"}`}>Email Address</label>
                         <div className="relative">
-                          <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+                          <Mail className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 ${theme === "light" ? "text-slate-400" : "text-white/40"}`} />
                           <input 
                             type="email" 
                             placeholder="e.g. samuel@domain.com" 
                             required 
-                            className="w-full bg-black/45 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white text-sm focus:outline-none focus:border-royal-purple focus:ring-1 focus:ring-royal-purple/40 placeholder:text-white/20" 
+                            className={`w-full rounded-xl py-3 pl-10 pr-4 text-sm focus:outline-none focus:ring-1 transition-all ${theme === "light" ? "bg-slate-50 border border-slate-300 text-slate-900 focus:border-royal-purple focus:ring-royal-purple/40 placeholder:text-slate-400" : "bg-black/45 border border-white/10 text-white focus:border-royal-purple focus:ring-royal-purple/40 placeholder:text-white/20"}`} 
                             value={regData.email} 
                             onChange={(e) => setRegData({...regData, email: e.target.value})} 
                           />
                         </div>
                      </div>
                      <div className="space-y-1">
-                        <label className="text-[11px] text-lilac/70 uppercase tracking-wider font-bold ml-1">Password</label>
+                        <label className={`text-[11px] uppercase tracking-wider font-bold ml-1 ${theme === "light" ? "text-slate-500" : "text-lilac/70"}`}>Password</label>
                         <div className="relative">
-                          <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+                          <Lock className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 ${theme === "light" ? "text-slate-400" : "text-white/40"}`} />
                           <input 
                             type={showRegPassword ? "text" : "password"} 
                             placeholder="Minimum 8 characters"
                             required 
-                            className="w-full bg-black/45 border border-white/10 rounded-xl py-3 pl-10 pr-11 text-white text-sm focus:outline-none focus:border-royal-purple focus:ring-1 focus:ring-royal-purple/40 placeholder:text-white/20" 
+                            className={`w-full rounded-xl py-3 pl-10 pr-11 text-sm focus:outline-none focus:ring-1 transition-all ${theme === "light" ? "bg-slate-50 border border-slate-300 text-slate-900 focus:border-royal-purple focus:ring-royal-purple/40 placeholder:text-slate-400" : "bg-black/45 border border-white/10 text-white focus:border-royal-purple focus:ring-royal-purple/40 placeholder:text-white/20"}`} 
                             value={regData.password} 
                             onChange={(e) => setRegData({...regData, password: e.target.value})} 
                           />
                           <button 
                             type="button" 
                             onClick={() => setShowRegPassword(!showRegPassword)} 
-                            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-colors cursor-pointer"
+                            className={`absolute right-3.5 top-1/2 -translate-y-1/2 transition-colors cursor-pointer ${theme === "light" ? "text-slate-400 hover:text-slate-600" : "text-white/40 hover:text-white"}`}
                           >
                             {showRegPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                           </button>
                         </div>
                      </div>
 
-                     <div className="flex justify-between items-center mt-5 pt-3 border-t border-white/5">
+                     <div className={`flex justify-between items-center mt-5 pt-3 border-t ${theme === "light" ? "border-slate-100" : "border-white/5"}`}>
                         <button 
                           type="button" 
                           onClick={prevStep} 
-                          className="flex items-center gap-1 text-xs text-lavender hover:text-white uppercase tracking-wider font-bold cursor-pointer transition-colors"
+                          className={`flex items-center gap-1 text-xs uppercase tracking-wider font-bold cursor-pointer transition-colors ${theme === "light" ? "text-slate-500 hover:text-slate-800" : "text-lavender hover:text-white"}`}
                         >
                           <ArrowLeft className="w-3.5 h-3.5" /> Back
                         </button>

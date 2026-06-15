@@ -264,7 +264,7 @@ export function Dashboard() {
       <ReportDeadlineAlert />
       <NotificationBanner />
       {/* Header Context Layer */}
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border-b border-white/5 pb-4">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border border-white/10 bg-white/5 p-5 md:p-6 rounded-2xl shadow-sm">
         <div>
           {user && (
             <div className="flex items-center flex-wrap gap-2 mb-2.5 animate-pulse">
