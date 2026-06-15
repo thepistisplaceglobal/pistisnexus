@@ -10,9 +10,9 @@ const allItems = [
   { path: "/branches", label: "Branches", icon: Network, roles: ["GLOBAL_ADMIN"] },
   { path: "/approvals", label: "Apps", icon: Key, roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN"] },
   { path: "/finance", label: "Finance", icon: Wallet, roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN"] },
-  { path: "/departments", label: "Depts", icon: Users, roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN"] },
-  { path: "/homecells", label: "Cells", icon: Home, roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN", "CELL_LEADER"] },
-  { path: "/interest", label: "Groups", icon: Compass, roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN", "INTEREST_GROUP_LEADER"] },
+  { path: "/departments", label: "Depts", icon: Users, roles: ["BRANCH_ADMIN"] },
+  { path: "/homecells", label: "Cells", icon: Home, roles: ["BRANCH_ADMIN", "CELL_LEADER"] },
+  { path: "/interest", label: "Groups", icon: Compass, roles: ["BRANCH_ADMIN", "INTEREST_GROUP_LEADER"] },
   { path: "/directory", label: "Directory", icon: Contact, roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN", "DEPT_LEADER", "CELL_LEADER", "INTEREST_GROUP_LEADER"] },
   { path: "/reports", label: "Reports", icon: FileText, roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN", "DEPT_LEADER", "CELL_LEADER", "INTEREST_GROUP_LEADER"] },
   { path: "/settings", label: "Settings", icon: SettingsIcon, roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN", "DEPT_LEADER", "CELL_LEADER", "INTEREST_GROUP_LEADER"] },
@@ -20,11 +20,34 @@ const allItems = [
 
 export function BottomNav() {
   const location = useLocation();
-  const user = useAppStore(state => state.user);
+  const { user, profiles, fetchProfiles } = useAppStore();
   const [showMore, setShowMore] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   
   const navItems = user ? allItems.filter(item => item.roles.includes(user.role)) : [];
+  
+  useEffect(() => {
+    if (user) {
+      fetchProfiles(user);
+    }
+  }, [user, fetchProfiles]);
+
+  const passwordRequests = useAppStore(state => state.passwordRequests) || [];
+  const pendingPasswordCount = passwordRequests.filter(req => {
+    if (!user) return false;
+    if (req.status !== "PENDING") return false;
+    if (user.role === "GLOBAL_ADMIN") {
+        return true; 
+    }
+    if (user.role === "BRANCH_ADMIN" && req.branchName === user.branchName) {
+        if (req.role === "GLOBAL_ADMIN" || req.role === "BRANCH_ADMIN") return false;
+        return true;
+    }
+    return false;
+  }).length;
+
+  const pendingRegistrationsCount = (profiles || []).filter(p => p.status === "PENDING").length;
+  const totalPendingApprovals = pendingPasswordCount + pendingRegistrationsCount;
   
   const visibleItems = navItems.length > 5 ? navItems.slice(0, 4) : navItems;
   const overflowItems = navItems.length > 5 ? navItems.slice(4) : [];
@@ -93,8 +116,13 @@ export function BottomNav() {
                             : "bg-white/5 text-lilac/80 border-white/5 hover:bg-white/10 hover:text-white"
                         )}
                       >
-                        <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center shrink-0">
+                        <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center shrink-0 relative">
                           <Icon className={cn("w-4 h-4 transition-transform group-hover:scale-110", isActive ? "text-emerald-400" : "text-lilac/70")} />
+                          {item.path === "/approvals" && totalPendingApprovals > 0 && (
+                            <span className="absolute -top-1 -right-1 bg-amber-500 text-black text-[9px] font-bold h-3.5 w-3.5 rounded-full flex items-center justify-center border border-black shadow">
+                              {totalPendingApprovals}
+                            </span>
+                          )}
                         </div>
                         <span className="text-xs font-semibold tracking-wide whitespace-nowrap">{item.label}</span>
                       </Link>
@@ -130,6 +158,11 @@ export function BottomNav() {
                   />
                 )}
                 <Icon className={cn("w-[21px] h-[21px] transition-transform duration-250", isActive ? "scale-105" : "group-hover:scale-105")} />
+                {item.path === "/approvals" && totalPendingApprovals > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 bg-amber-500 text-black text-[9px] font-bold h-4 w-4 rounded-full flex items-center justify-center animate-pulse border border-black shadow">
+                    {totalPendingApprovals}
+                  </span>
+                )}
               </div>
               <span className="text-[10px] font-medium tracking-wide">
                 {item.label}
@@ -162,7 +195,14 @@ export function BottomNav() {
               {showMore ? (
                 <X className="w-[21px] h-[21px] transition-transform duration-250" />
               ) : (
-                <Menu className="w-[21px] h-[21px] transition-transform duration-250 group-hover:scale-105" />
+                <>
+                  <Menu className="w-[21px] h-[21px] transition-transform duration-250 group-hover:scale-105" />
+                  {totalPendingApprovals > 0 && overflowItems.some(i => i.path === "/approvals") && (
+                    <span className="absolute -top-1.5 -right-1.5 bg-amber-500 text-black text-[9px] font-bold h-4 w-4 rounded-full flex items-center justify-center animate-pulse border border-black shadow">
+                      {totalPendingApprovals}
+                    </span>
+                  )}
+                </>
               )}
             </div>
             <span className="text-[10px] font-medium tracking-wide">

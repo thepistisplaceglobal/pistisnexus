@@ -64,6 +64,18 @@ export interface PasswordRequest {
   createdAt: string;
 }
 
+export interface Profile {
+  id: string;
+  email: string;
+  full_name: string;
+  role: string;
+  country: string;
+  branch_name: string;
+  unit_name: string;
+  status: string;
+  created_at: string;
+}
+
 export interface PendingAction {
   id: string;
   type: string;
@@ -106,6 +118,12 @@ interface AppState {
   passwordRequests: PasswordRequest[];
   requestPasswordChange: (req: PasswordRequest) => void;
   updatePasswordRequestStatus: (id: string, status: "APPROVED" | "REJECTED") => void;
+  profiles: Profile[];
+  setProfiles: (profiles: Profile[]) => void;
+  fetchProfiles: (currentUser: User | null) => Promise<void>;
+  updateProfileStatus: (id: string, updates: Partial<Profile>) => Promise<void>;
+  clearTestData: (currentUser: User | null) => Promise<void>;
+  bulkDeleteDatabaseRecords: (tables: string[]) => Promise<{ success: boolean; results: Record<string, { deleted: number; error?: string }> }>;
 }
 
 const idbStorage = {
@@ -217,6 +235,16 @@ export const useAppStore = create<AppState>()(
         }
       },
       deleteLeader: async (id) => {
+        const currentUser = get().user;
+        if (!currentUser || (currentUser.role !== "GLOBAL_ADMIN" && currentUser.role !== "BRANCH_ADMIN")) {
+          throw new Error("Unauthorized: Only branch or global administrators can delete leaders.");
+        }
+
+        const leader = get().leaders.find(l => l.id === id);
+        if (leader && currentUser.role === "BRANCH_ADMIN" && leader.branch !== currentUser.branchName) {
+          throw new Error("Unauthorized: You can only delete leaders within your assigned branch.");
+        }
+
         const { isOnline, addPendingAction } = get();
         if (!isOnline) {
            addPendingAction({ type: 'DELETE_LEADER', payload: { id } });
@@ -319,6 +347,270 @@ export const useAppStore = create<AppState>()(
       updatePasswordRequestStatus: (id, status) => set((state) => ({
         passwordRequests: state.passwordRequests.map(r => r.id === id ? { ...r, status } : r)
       })),
+      profiles: [],
+      setProfiles: (profiles) => set({ profiles }),
+      fetchProfiles: async (currentUser) => {
+        let profilesList: Profile[] = [];
+        try {
+          let query = supabase.from("profiles").select("*");
+          if (currentUser?.role === "GLOBAL_ADMIN") {
+            query = query.in("role", ["GLOBAL_ADMIN", "BRANCH_ADMIN"]);
+          } else if (currentUser?.role === "BRANCH_ADMIN") {
+            query = query.eq("branch_name", currentUser.branchName || "");
+            query = query.not("role", "in", '("GLOBAL_ADMIN", "BRANCH_ADMIN")');
+          }
+          const { data, error } = await query;
+          if (!error && data) {
+            profilesList = data as Profile[];
+          }
+        } catch (err) {
+          console.warn("Global profiles fetch bypassed:", err);
+        }
+
+        // Merge with local storage
+        try {
+          const localProfilesStr = localStorage.getItem("local_profiles");
+          const localProfiles: Profile[] = localProfilesStr ? JSON.parse(localProfilesStr) : [];
+          
+          if (profilesList.length === 0 && localProfiles.length === 0) {
+            const defaultCollection: Profile[] = [
+              {
+                id: "seed-leader-chidi",
+                email: "chidi.media@pistisnexus.com",
+                full_name: "Chidi Nwachukwu",
+                role: "DEPT_LEADER",
+                country: "Nigeria",
+                branch_name: currentUser?.branchName || "Uyo (HQ)",
+                unit_name: "Media Department",
+                status: "PENDING",
+                created_at: new Date(Date.now() - 3600000 * 2).toISOString()
+              },
+              {
+                id: "seed-leader-amina",
+                email: "amina.calabar@pistisnexus.com",
+                full_name: "Amina Henshaw",
+                role: "CELL_LEADER",
+                country: "Nigeria",
+                branch_name: currentUser?.branchName || "Calabar",
+                unit_name: "Calabar Central Cell 3",
+                status: "PENDING",
+                created_at: new Date(Date.now() - 3600000 * 5).toISOString()
+              },
+              {
+                id: "seed-leader-emeka",
+                email: "emeka.music@pistisnexus.com",
+                full_name: "Emeka Okafor",
+                role: "DEPT_LEADER",
+                country: "Nigeria",
+                branch_name: currentUser?.branchName || "Uyo (HQ)",
+                unit_name: "Music & Creative Arts",
+                status: "APPROVED",
+                created_at: new Date(Date.now() - 3600000 * 24).toISOString()
+              },
+              {
+                id: "seed-leader-funke",
+                email: "funke.usher@pistisnexus.com",
+                full_name: "Funke Adebayo",
+                role: "DEPT_LEADER",
+                country: "Nigeria",
+                branch_name: currentUser?.branchName || "Lagos HQ",
+                unit_name: "Ushering Association",
+                status: "APPROVED",
+                created_at: new Date(Date.now() - 3600000 * 36).toISOString()
+              }
+            ];
+            localStorage.setItem("local_profiles", JSON.stringify(defaultCollection));
+            profilesList = defaultCollection;
+          } else {
+            const mergedMap = new Map<string, Profile>();
+            localProfiles.forEach((p: Profile) => mergedMap.set(p.id, p));
+            profilesList.forEach((p: Profile) => mergedMap.set(p.id, p));
+            profilesList = Array.from(mergedMap.values());
+            localStorage.setItem("local_profiles", JSON.stringify(profilesList));
+          }
+        } catch (e) {
+          console.error(e);
+        }
+
+        if (currentUser?.role === "GLOBAL_ADMIN") {
+          profilesList = profilesList.filter(p => p.role === "GLOBAL_ADMIN" || p.role === "BRANCH_ADMIN");
+        } else if (currentUser?.role === "BRANCH_ADMIN") {
+          profilesList = profilesList.filter(p => p.branch_name === currentUser.branchName && p.role !== "GLOBAL_ADMIN" && p.role !== "BRANCH_ADMIN");
+        } else {
+          profilesList = [];
+        }
+
+        set({ profiles: profilesList });
+      },
+      updateProfileStatus: async (id, statusUpdates) => {
+        try {
+          await supabase.from("profiles").update(statusUpdates).eq("id", id);
+        } catch (err) {
+          console.warn(err);
+        }
+
+        // Always update local storage
+        try {
+          const localProfilesStr = localStorage.getItem("local_profiles");
+          if (localProfilesStr) {
+            const localProfiles: Profile[] = JSON.parse(localProfilesStr);
+            const updated = localProfiles.map(p => p.id === id ? { ...p, ...statusUpdates } : p);
+            localStorage.setItem("local_profiles", JSON.stringify(updated));
+          }
+        } catch (e) {
+          console.error(e);
+        }
+
+        // Update memory
+        set((state) => ({
+          profiles: state.profiles.map(p => p.id === id ? { ...p, ...statusUpdates } : p)
+        }));
+      },
+      clearTestData: async (currentUser) => {
+        try {
+          localStorage.removeItem("local_profiles");
+          set({ profiles: [] });
+          if (currentUser) {
+            let profilesList: Profile[] = [];
+            try {
+              let query = supabase.from("profiles").select("*");
+              if (currentUser?.role === "GLOBAL_ADMIN") {
+                query = query.in("role", ["GLOBAL_ADMIN", "BRANCH_ADMIN"]);
+              } else if (currentUser?.role === "BRANCH_ADMIN") {
+                query = query.eq("branch_name", currentUser.branchName || "");
+                query = query.not("role", "in", '("GLOBAL_ADMIN", "BRANCH_ADMIN")');
+              }
+              const { data, error } = await query;
+              if (!error && data) {
+                profilesList = data as Profile[];
+              }
+            } catch (err) {
+              console.warn("Global profiles fetch bypassed:", err);
+            }
+
+            if (currentUser?.role === "GLOBAL_ADMIN") {
+              profilesList = profilesList.filter(p => p.role === "GLOBAL_ADMIN" || p.role === "BRANCH_ADMIN");
+            } else if (currentUser?.role === "BRANCH_ADMIN") {
+              profilesList = profilesList.filter(p => p.branch_name === currentUser.branchName && p.role !== "GLOBAL_ADMIN" && p.role !== "BRANCH_ADMIN");
+            } else {
+              profilesList = [];
+            }
+            set({ profiles: profilesList });
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      },
+      bulkDeleteDatabaseRecords: async (tables) => {
+        const results: Record<string, { deleted: number; error?: string }> = {};
+        const currentUser = get().user;
+        if (!currentUser || (currentUser.role !== "GLOBAL_ADMIN" && currentUser.role !== "BRANCH_ADMIN")) {
+          throw new Error("Unauthorized: Only platform administrators can perform bulk database operations.");
+        }
+
+        const isGlobalAdmin = currentUser.role === "GLOBAL_ADMIN";
+        const branchNameFilter = currentUser.branchName || "";
+
+        for (const table of tables) {
+          try {
+            let query = supabase.from(table).delete();
+            
+            // Adjust filters based on role constraints
+            if (table === "unit_reports") {
+              if (!isGlobalAdmin) {
+                query = query.eq("branch_name", branchNameFilter);
+              } else {
+                query = query.neq("id", "nonexistent-placeholder-id");
+              }
+            } else if (table === "branch_reports") {
+              if (!isGlobalAdmin) {
+                query = query.eq("branch_name", branchNameFilter);
+              } else {
+                query = query.neq("id", "nonexistent-placeholder-id");
+              }
+            } else if (table === "activity_logs") {
+              if (!isGlobalAdmin) {
+                query = query.eq("branch_name", branchNameFilter);
+              } else {
+                query = query.neq("id", "nonexistent-placeholder-id");
+              }
+            } else if (table === "branch_messages") {
+              if (!isGlobalAdmin) {
+                query = query.eq("branch_name", branchNameFilter);
+              } else {
+                query = query.neq("id", "nonexistent-placeholder-id");
+              }
+            } else if (table === "global_messages") {
+              if (!isGlobalAdmin) {
+                // Branch Admin cannot delete global messages!
+                continue;
+              } else {
+                query = query.neq("id", "nonexistent-placeholder-id");
+              }
+            } else if (table === "leaders") {
+              if (!isGlobalAdmin) {
+                query = query.eq("branch", branchNameFilter);
+              } else {
+                query = query.neq("id", "nonexistent-placeholder-id");
+              }
+            } else if (table === "profiles") {
+              // Be very careful - NEVER delete the active user, and NEVER delete accepted/approved active users!
+              // Only delete PENDING or REJECTED profiles (representing unapproved demo or test accounts/registrants)
+              if (!isGlobalAdmin) {
+                query = query.eq("branch_name", branchNameFilter).neq("id", currentUser.id).in("status", ["PENDING", "REJECTED"]);
+              } else {
+                query = query.neq("id", currentUser.id).in("status", ["PENDING", "REJECTED"]);
+              }
+            }
+
+            const { data, error } = await query.select();
+
+            if (error) {
+              results[table] = { deleted: 0, error: error.message };
+            } else {
+              const count = data ? data.length : 0;
+              results[table] = { deleted: count };
+
+              // Update memory state in store
+              if (table === "leaders") {
+                if (isGlobalAdmin) {
+                  set({ leaders: [] });
+                } else {
+                  set((state) => ({ leaders: state.leaders.filter(l => l.branch !== branchNameFilter) }));
+                }
+              } else if (table === "global_messages" && isGlobalAdmin) {
+                set({ globalMessages: [] });
+              } else if (table === "branch_messages") {
+                if (isGlobalAdmin) {
+                  set({ branchMessages: [] });
+                } else {
+                  set((state) => ({ branchMessages: state.branchMessages.filter(m => m.branch_name !== branchNameFilter) }));
+                }
+              } else if (table === "profiles") {
+                // Refetch profiles
+                await get().fetchProfiles(currentUser);
+              }
+            }
+          } catch (err: any) {
+            results[table] = { deleted: 0, error: err.message || String(err) };
+          }
+        }
+
+        // Always log database purge action to activity stream
+        try {
+          await ActivityService.logActivity({
+            user_name: currentUser.name,
+            user_role: currentUser.role,
+            branch_name: currentUser.branchName || null,
+            action_type: "DATABASE_MAINTENANCE",
+            details: `Administered bulk database deletion of records for categories: ${tables.join(", ")}`
+          });
+        } catch (e) {
+          console.warn("Failed to write utility action log:", e);
+        }
+
+        return { success: true, results };
+      },
     }),
     {
       name: 'pistis-nexus-storage', // unique name

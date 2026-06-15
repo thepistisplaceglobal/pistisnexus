@@ -9,7 +9,7 @@ import { useState } from "react";
 
 export function AppLayout() {
   usePresence();
-  const { isOnline, pendingActions, syncPendingActions } = useAppStore();
+  const { isOnline, pendingActions, syncPendingActions, theme } = useAppStore();
   const [isSyncing, setIsSyncing] = useState(false);
 
   const handleSync = async () => {
@@ -29,7 +29,7 @@ export function AppLayout() {
       <div className="flex-1 flex flex-col relative w-full h-full">
          <div className="w-full flex items-center justify-between px-4 md:px-8 py-4 sticky top-0 z-40 bg-[#0B0118]/60 backdrop-blur-sm border-b border-white/5 pt-6">
             <div className="flex md:hidden items-center gap-3">
-              <img src="/logo.png" alt="Logo" className="w-8 h-8 object-contain drop-shadow-[0_0_15px_rgba(120,81,169,0.5)]" />
+              <img src={theme === "light" ? "/logo_purple.png" : "/logo.png"} alt="Logo" className="w-8 h-8 object-contain drop-shadow-[0_0_15px_rgba(120,81,169,0.5)]" />
               <div>
                 <h1 className="font-bold tracking-wider text-sm uppercase text-white">Pistis Nexus</h1>
                 <p className="text-[10px] text-lilac uppercase tracking-widest">Administrative System</p>

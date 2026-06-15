@@ -14,6 +14,7 @@ import { Approvals } from "./pages/Approvals";
 import { Settings } from "./pages/Settings";
 import { useAppStore, Role } from "./store/useAppStore";
 import { InstallPrompt } from "@/components/ui/InstallPrompt";
+import { ConnectionToast } from "@/components/ui/ConnectionToast";
 
 const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode, allowedRoles?: Role[] }) => {
   const user = useAppStore((state) => state.user);
@@ -69,6 +70,7 @@ export default function App() {
         </Routes>
       </BrowserRouter>
       <InstallPrompt />
+      <ConnectionToast />
     </>
   );
 }

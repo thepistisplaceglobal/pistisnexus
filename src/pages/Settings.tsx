@@ -16,14 +16,17 @@ import {
   LogOut,
   Smartphone,
   Check,
-  Loader2
+  Loader2,
+  Database,
+  Trash2,
+  AlertTriangle
 } from "lucide-react";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { ActionButton } from "@/components/ui/ActionButton";
 
 import { AvatarUpload } from "@/components/ui/AvatarUpload";
 
-type TabType = "profile" | "security" | "info";
+type TabType = "profile" | "security" | "info" | "admin";
 
 export function Settings() {
   const { user, updateUser, logout } = useAppStore();
@@ -55,6 +58,15 @@ export function Settings() {
   const [testStatus, setTestStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
   const [latency, setLatency] = useState<number | null>(null);
   const [testMessage, setTestMessage] = useState<string>("");
+
+  // Admin purge utility states
+  const [selectedTables, setSelectedTables] = useState<string[]>([]);
+  const [purgeLoading, setPurgeLoading] = useState(false);
+  const [purgeResult, setPurgeResult] = useState<Record<string, { deleted: number; error?: string }> | null>(null);
+  const [purgeConfirmText, setPurgeConfirmText] = useState("");
+  const [purgeConfirmed, setPurgeConfirmed] = useState(false);
+  const [counts, setCounts] = useState<Record<string, number>>({});
+  const [countsLoading, setCountsLoading] = useState(false);
 
   const testConnection = async () => {
     setTestStatus("testing");
@@ -118,6 +130,183 @@ export function Settings() {
 
     fetchFullProfile();
   }, [user?.id]);
+
+  useEffect(() => {
+    if (activeTab === "admin" && (user?.role === "GLOBAL_ADMIN" || user?.role === "BRANCH_ADMIN")) {
+      const loadCounts = async () => {
+        setCountsLoading(true);
+        const updatedCounts: Record<string, number> = {};
+        const isGlobal = user.role === "GLOBAL_ADMIN";
+        const branch = user.branchName || "";
+
+        const targets = ["unit_reports", "branch_reports", "activity_logs", "branch_messages", "global_messages", "leaders", "profiles"];
+
+        for (const table of targets) {
+          if (table === "global_messages" && !isGlobal) {
+            continue;
+          }
+          try {
+            let query = supabase.from(table).select("*", { count: "exact", head: true });
+            if (!isGlobal) {
+              if (table === "leaders") {
+                query = query.eq("branch", branch);
+              } else if (table === "profiles") {
+                query = query.eq("branch_name", branch).neq("id", user.id).in("status", ["PENDING", "REJECTED"]);
+              } else if (table !== "global_messages") {
+                query = query.eq("branch_name", branch);
+              }
+            } else {
+              if (table === "profiles") {
+                query = query.neq("id", user.id).in("status", ["PENDING", "REJECTED"]);
+              }
+            }
+            const { count, error } = await query;
+            if (!error && count !== null) {
+              updatedCounts[table] = count;
+            } else {
+              updatedCounts[table] = 0;
+            }
+          } catch (e) {
+            updatedCounts[table] = 0;
+          }
+
+          if (table === "profiles") {
+            const localVal = localStorage.getItem("local_profiles");
+            if (localVal) {
+              try {
+                const list = JSON.parse(localVal);
+                let localCount = list.length;
+                if (!isGlobal) {
+                  localCount = list.filter((p: any) => p.branch_name === branch && p.id !== user.id && (p.status === "PENDING" || p.status === "REJECTED")).length;
+                } else {
+                  localCount = list.filter((p: any) => p.id !== user.id && (p.status === "PENDING" || p.status === "REJECTED")).length;
+                }
+                if (localCount > (updatedCounts[table] || 0)) {
+                  updatedCounts[table] = localCount;
+                }
+              } catch (pErr) {}
+            }
+          }
+        }
+        setCounts(updatedCounts);
+        setCountsLoading(false);
+      };
+
+      loadCounts();
+      setPurgeResult(null);
+      setPurgeConfirmText("");
+      setPurgeConfirmed(false);
+    }
+  }, [activeTab, user]);
+
+  const handleBulkClear = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || selectedTables.length === 0) return;
+
+    if (purgeConfirmText !== "CONFIRM_DELETE") {
+      alert("Please type CONFIRM_DELETE exactly to execute.");
+      return;
+    }
+
+    setPurgeLoading(true);
+    setPurgeResult(null);
+
+    try {
+      const { bulkDeleteDatabaseRecords } = useAppStore.getState();
+      const res = await bulkDeleteDatabaseRecords(selectedTables);
+      if (res.success) {
+        setPurgeResult(res.results);
+        setSelectedTables([]);
+        setPurgeConfirmText("");
+        setPurgeConfirmed(false);
+        setTimeout(() => {
+          const currentCounts = { ...counts };
+          selectedTables.forEach(t => {
+            currentCounts[t] = 0;
+          });
+          setCounts(currentCounts);
+        }, 500);
+      }
+    } catch (err: any) {
+      alert(err.message || "An error occurred during DB purge.");
+    } finally {
+      setPurgeLoading(false);
+    }
+  };
+
+  const maintenanceCollections = [
+    {
+      id: "unit_reports",
+      label: "Weekly Unit Reports",
+      description: "Form submissions completed by departments, cell structures, and group units.",
+      icon: Shield,
+      textColor: "text-indigo-400"
+    },
+    {
+      id: "branch_reports",
+      label: "Branch Weekly Summaries",
+      description: "Aggregated financial sheets and visitor tallies prepared weekly for HQ review.",
+      icon: Building2,
+      textColor: "text-amber-400"
+    },
+    {
+      id: "activity_logs",
+      label: "Platform Activity Logs",
+      description: "Audit trail log actions representing current and historical operations.",
+      icon: Globe,
+      textColor: "text-blue-400"
+    },
+    {
+      id: "branch_messages",
+      label: "Branch Hub Chat Bulletins",
+      description: "Local group communications and chat messaging rooms.",
+      icon: Mail,
+      textColor: "text-emerald-400"
+    },
+    {
+      id: "global_messages",
+      label: "Global Bulletins & Feed Broadcasts",
+      description: "Platform-wide messages and central announcements (Global Admin only).",
+      icon: Globe,
+      textColor: "text-purple-400",
+      globalOnly: true
+    },
+    {
+      id: "leaders",
+      label: "Seed Leader Records & Directory",
+      description: "Roster details, contacts, and branch directories.",
+      icon: UserIcon,
+      textColor: "text-rose-400"
+    },
+    {
+      id: "profiles",
+      label: "Pending Access Registrations",
+      description: "Pending access accounts and registrations (excluding your own).",
+      icon: Shield,
+      textColor: "text-orange-400"
+    }
+  ];
+
+  const toggleTableSelection = (tableId: string) => {
+    setSelectedTables(prev => 
+      prev.includes(tableId) 
+        ? prev.filter(id => id !== tableId)
+        : [...prev, tableId]
+    );
+  };
+
+  const selectAllTables = () => {
+    const isGlobal = user?.role === "GLOBAL_ADMIN";
+    const available = maintenanceCollections
+      .filter(item => !item.globalOnly || isGlobal)
+      .map(item => item.id);
+    
+    if (selectedTables.length === available.length) {
+      setSelectedTables([]);
+    } else {
+      setSelectedTables(available);
+    }
+  };
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -202,6 +391,9 @@ export function Settings() {
   const tabs = [
     { id: "profile" as TabType, label: "Profile", icon: UserIcon },
     { id: "security" as TabType, label: "Security", icon: Lock },
+    ...(user?.role === "GLOBAL_ADMIN" || user?.role === "BRANCH_ADMIN" ? [
+      { id: "admin" as TabType, label: "Data Maintenance", icon: Database }
+    ] : []),
     { id: "info" as TabType, label: "System Info", icon: SettingsIcon },
   ];
 
@@ -574,6 +766,174 @@ export function Settings() {
                         </div>
                       )}
                     </div>
+                  )}
+                </div>
+              </GlassCard>
+            </div>
+          )}
+
+          {activeTab === "admin" && (user?.role === "GLOBAL_ADMIN" || user?.role === "BRANCH_ADMIN") && (
+            <div className="space-y-6">
+              <GlassCard className="border-white/5 bg-[#120524]/40">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-400 border border-rose-500/20">
+                    <Database className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-white uppercase tracking-wider">Database Purge & Test Data Maintenance</h4>
+                    <p className="text-xs text-lilac/60 font-medium font-sans">Identify and remove mock seed lists, sample weekly reports, and diagnostic logs from the database.</p>
+                  </div>
+                </div>
+
+                <div className="p-3 bg-amber-500/10 rounded-xl border border-amber-500/20 text-xs text-amber-400/90 leading-relaxed flex gap-2 mb-6">
+                  <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0 animate-pulse" />
+                  <div>
+                    <span className="font-bold">Administrative Safeguard Action Required:</span> Entries deleted from Supabase tables are permanently destroyed. Since you are logged in as a <strong>{user?.role.replace('_', ' ')}</strong>, you are restricted to {user?.role === 'GLOBAL_ADMIN' ? 'global application datasets' : `your assigned branch node: <strong>${user?.branchName}</strong>`}.
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  {/* Selection headers */}
+                  <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                    <button
+                      type="button"
+                      onClick={selectAllTables}
+                      className="text-xs text-emerald-400 font-semibold flex items-center gap-2 cursor-pointer bg-transparent border-0 outline-none"
+                    >
+                      {selectedTables.length === (user?.role === "GLOBAL_ADMIN" ? 7 : 6) ? "Clear Selection" : "Select All Available Categories"}
+                    </button>
+                    <span className="text-[10px] text-lilac/45 uppercase font-medium">Record Inventory</span>
+                  </div>
+
+                  {countsLoading ? (
+                    <div className="flex flex-col items-center justify-center py-8 gap-2">
+                      <Loader2 className="w-6 h-6 animate-spin text-[#ef4444]" />
+                      <span className="text-xs text-lilac/60 font-medium">Syncing live record sizes...</span>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pb-4">
+                      {maintenanceCollections
+                        .filter(item => !item.globalOnly || user?.role === "GLOBAL_ADMIN")
+                        .map(item => {
+                          const Icon = item.icon;
+                          const isSelected = selectedTables.includes(item.id);
+                          const recordCount = counts[item.id] !== undefined ? counts[item.id] : "...";
+                          
+                          return (
+                            <div 
+                              key={item.id}
+                              onClick={() => toggleTableSelection(item.id)}
+                              className={`flex items-start gap-3 p-4 rounded-xl border transition-all cursor-pointer ${
+                                isSelected 
+                                  ? "bg-rose-500/5 border-rose-500/30 text-white" 
+                                  : "bg-black/20 border-white/5 hover:border-white/10 text-lilac/80"
+                              }`}
+                            >
+                              <div className="mt-1">
+                                {isSelected ? (
+                                  <div className="w-4 h-4 rounded bg-rose-500 text-black flex items-center justify-center">
+                                    <Check className="w-3 h-3 stroke-[3]" />
+                                  </div>
+                                ) : (
+                                  <div className="w-4 h-4 rounded border border-white/30" />
+                                )}
+                              </div>
+                              <div className="flex-1">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-xs font-bold flex items-center gap-1.5 text-white">
+                                    <Icon className={`w-3.5 h-3.5 ${item.textColor}`} />
+                                    {item.label}
+                                  </span>
+                                  <span className={`text-[10px] font-bold font-mono px-2 py-0.5 rounded-full ${
+                                    typeof recordCount === "number" && recordCount > 0 
+                                      ? "bg-rose-500/20 border border-rose-500/40 text-rose-300"
+                                      : "bg-white/5 border border-white/5 text-lilac/45"
+                                  }`}>
+                                    {recordCount} pkts
+                                  </span>
+                                </div>
+                                <p className="text-[10px] text-lilac/50 mt-1 select-none leading-normal">{item.description}</p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  )}
+
+                  {purgeResult && (
+                    <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl space-y-2">
+                      <div className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+                        <CheckCircle2 className="w-4 h-4" /> Action Verification Log:
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] leading-relaxed">
+                        {Object.entries(purgeResult).map(([table, details]) => (
+                          <div key={table} className="flex justify-between border-b border-white/5 py-1">
+                            <span className="text-white capitalize">{table.replace('_', ' ')}</span>
+                            {details.error ? (
+                              <span className="text-rose-400 font-bold font-sans">Failed: {details.error}</span>
+                            ) : (
+                              <span className="text-emerald-400 font-bold font-sans">{details.deleted} records cleared</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedTables.length > 0 && (
+                    <form onSubmit={handleBulkClear} className="mt-6 border-t border-white/5 pt-4 space-y-4 font-sans">
+                      <div className="p-4 bg-[#ef4444]/5 rounded-xl border border-[#ef4444]/20 space-y-3">
+                        <div className="text-xs font-semibold text-rose-400 flex items-center gap-1.5">
+                          <AlertTriangle className="w-4 h-4 animate-pulse text-rose-400 font-sans" />
+                          Double Affirmation Authentication Required:
+                        </div>
+                        <p className="text-[11px] text-lilac/75 leading-normal">
+                          Type <code className="bg-black/40 text-rose-400 px-1.5 py-0.5 rounded font-mono select-all">CONFIRM_DELETE</code> in the field below to verify you will remove <strong className="text-white">{selectedTables.length} categories</strong> of database tables.
+                        </p>
+                        <div className="space-y-1.5">
+                          <input
+                            type="text"
+                            required
+                            placeholder="Type CONFIRM_DELETE exactly"
+                            value={purgeConfirmText}
+                            onChange={(e) => setPurgeConfirmText(e.target.value)}
+                            className="w-full bg-[#080211]/80 border border-rose-500/20 rounded-xl py-2 px-3 text-white text-xs font-mono focus:outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-500/50 font-sans"
+                          />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            id="audit_purge_box"
+                            checked={purgeConfirmed}
+                            onChange={(e) => setPurgeConfirmed(e.target.checked)}
+                            className="rounded bg-black border-white/20 text-[#ef4444] focus:ring-0 cursor-pointer h-3.5 w-3.5"
+                          />
+                          <label htmlFor="audit_purge_box" className="text-[11px] text-lavender/70 cursor-pointer select-none">
+                            I verify I want to irreversibly clean active test payloads.
+                          </label>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end pt-2">
+                        <ActionButton
+                          type="submit"
+                          disabled={purgeLoading || purgeConfirmText !== "CONFIRM_DELETE" || !purgeConfirmed}
+                          className="bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 hover:shadow-[0_4px_15px_rgba(239,68,68,0.25)] text-white px-5 py-2.5 text-xs font-bold rounded-xl flex items-center gap-2 cursor-pointer disabled:opacity-40 font-sans border-0"
+                        >
+                          {purgeLoading ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              Wiping Selected Collections...
+                            </>
+                          ) : (
+                            <>
+                              <Trash2 className="w-3.5 h-3.5" />
+                              Execute Destruction of {selectedTables.length} Categories
+                            </>
+                          )}
+                        </ActionButton>
+                      </div>
+                    </form>
                   )}
                 </div>
               </GlassCard>

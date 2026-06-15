@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase";
 
 export function Login() {
   const login = useAppStore((state) => state.login);
+  const theme = useAppStore((state) => state.theme);
   const navigate = useNavigate();
   const [view, setView] = useState<"LOGIN_SELECT" | "REGISTER">("LOGIN_SELECT");
 
@@ -176,7 +177,7 @@ export function Login() {
       return;
     }
     
-    const { error: profileError } = await supabase.from('profiles').insert([{
+    const profileObj = {
       id: signUpData.user.id,
       email: regData.email,
       full_name: regData.fullName,
@@ -184,8 +185,20 @@ export function Login() {
       country: regData.country,
       branch_name: regData.branchName,
       unit_name: regData.unitName,
-      status: 'PENDING'
-    }]);
+      status: 'PENDING' as const
+    };
+
+    // Save to local cache of profiles for robust persistence in bypass mode
+    try {
+      const localP = localStorage.getItem("local_profiles");
+      const list = localP ? JSON.parse(localP) : [];
+      const filteredList = list.filter((p: any) => p.id !== signUpData.user.id && p.email !== regData.email);
+      localStorage.setItem("local_profiles", JSON.stringify([...filteredList, { ...profileObj, created_at: new Date().toISOString() }]));
+    } catch (e) {
+      console.error("Local storage error:", e);
+    }
+
+    const { error: profileError } = await supabase.from('profiles').insert([profileObj]);
     
     if (profileError) {
       const isDuplicate = profileError.code === '23505' || 
@@ -193,17 +206,31 @@ export function Login() {
                           profileError.message?.toLowerCase().includes('already exists');
                           
       if (isDuplicate) {
+        const updateObj = {
+          email: regData.email,
+          full_name: regData.fullName,
+          role: regData.role,
+          country: regData.country,
+          branch_name: regData.branchName,
+          unit_name: regData.unitName,
+          status: 'PENDING' as const
+        };
+
+        try {
+          const localP = localStorage.getItem("local_profiles");
+          const list = localP ? JSON.parse(localP) : [];
+          const updatedList = list.map((p: any) => p.id === signUpData.user.id ? { ...p, ...updateObj } : p);
+          if (!list.some((p: any) => p.id === signUpData.user.id)) {
+            updatedList.push({ id: signUpData.user.id, ...updateObj, created_at: new Date().toISOString() });
+          }
+          localStorage.setItem("local_profiles", JSON.stringify(updatedList));
+        } catch (e) {
+          console.error("Local storage error:", e);
+        }
+
         const { error: updateError } = await supabase
           .from('profiles')
-          .update({
-            email: regData.email,
-            full_name: regData.fullName,
-            role: regData.role,
-            country: regData.country,
-            branch_name: regData.branchName,
-            unit_name: regData.unitName,
-            status: 'PENDING'
-          })
+          .update(updateObj)
           .eq('id', signUpData.user.id);
           
         if (updateError) {
@@ -239,7 +266,7 @@ export function Login() {
           <div className="relative mb-3 group">
             <div className="absolute inset-0 rounded-full bg-royal-purple/30 blur-xl group-hover:bg-royal-purple/45 transition-all duration-500 scale-95" />
             <img 
-              src="/logo.png" 
+              src={theme === "light" ? "/logo_purple.png" : "/logo.png"} 
               alt="The Pistis Place Logo" 
               className="w-20 h-20 relative object-contain drop-shadow-[0_0_20px_rgba(120,81,169,0.5)] transform transition-transform group-hover:scale-105 duration-500" 
             />

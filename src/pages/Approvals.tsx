@@ -1,53 +1,43 @@
 import React, { useState, useEffect } from "react";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { supabase } from "@/lib/supabase";
-import { Check, X, Key, ShieldAlert, Users, Search, UserMinus, Building, MapPin, Globe } from "lucide-react";
-import { useAppStore } from "@/store/useAppStore";
+import { Check, X, Key, ShieldAlert, Users, Search, UserMinus, Building, MapPin, Globe, Trash2 } from "lucide-react";
+import { useAppStore, Profile } from "@/store/useAppStore";
 import { ActivityService } from "@/services/activityService";
-
-interface Profile {
-  id: string;
-  email: string;
-  full_name: string;
-  role: string;
-  country: string;
-  branch_name: string;
-  unit_name: string;
-  status: string;
-  created_at: string;
-}
 
 export function Approvals() {
   const user = useAppStore((state) => state.user);
-  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const profiles = useAppStore((state) => state.profiles);
+  const fetchProfiles = useAppStore((state) => state.fetchProfiles);
+  const updateProfileStatus = useAppStore((state) => state.updateProfileStatus);
+  const clearTestData = useAppStore((state) => state.clearTestData);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"PENDING" | "APPROVED" | "PASSWORDS">("PENDING");
   const passwordRequests = useAppStore(state => state.passwordRequests);
   const updatePasswordRequestStatus = useAppStore(state => state.updatePasswordRequestStatus);
   const [searchTerm, setSearchTerm] = useState("");
   const [roleOverrides, setRoleOverrides] = useState<Record<string, string>>({});
+  const [purging, setPurging] = useState(false);
+  const [purgeSuccess, setPurgeSuccess] = useState(false);
 
-  const fetchProfiles = async () => {
-    setLoading(true);
-    let query = supabase.from("profiles").select("*");
-
-    // Global admins see everything, Branch admins see only their branch (and not other GAs or their own BAs maybe? We'll fetch all and filter or via RLS)
-    // Assuming RLS handles it, or we just filter here for UI:
-    if (user?.role === "BRANCH_ADMIN") {
-      query = query.eq("branch_name", user.branchName || "");
-      // Branch admins cannot approve Global or other Branch Admins
-      query = query.not("role", "in", '("GLOBAL_ADMIN", "BRANCH_ADMIN")');
+  const handlePurge = async () => {
+    if (!window.confirm("Are you sure you want to remove all local demo/seed leader profiles and start fresh? This will preserve any remote database records.")) {
+      return;
     }
-
-    const { data, error } = await query;
-    if (!error && data) {
-      setProfiles(data as Profile[]);
-    }
-    setLoading(false);
+    setPurging(true);
+    await clearTestData(user);
+    setPurging(false);
+    setPurgeSuccess(true);
+    setTimeout(() => setPurgeSuccess(false), 3000);
   };
 
   useEffect(() => {
-    fetchProfiles();
+    const load = async () => {
+      setLoading(true);
+      await fetchProfiles(user);
+      setLoading(false);
+    };
+    load();
   }, [user]);
 
   const handleRoleChange = (id: string, newRole: string) => {
@@ -63,33 +53,25 @@ export function Approvals() {
 
     const targetProfile = profiles.find(p => p.id === id);
 
-    const { error } = await supabase
-      .from("profiles")
-      .update(updateData)
-      .eq("id", id);
+    await updateProfileStatus(id, updateData);
     
-    if (!error) {
-      setProfiles(profiles.map(p => p.id === id ? { ...p, ...updateData } : p));
-      if (overrideRole) {
-        setRoleOverrides(prev => {
-          const newOverrides = { ...prev };
-          delete newOverrides[id];
-          return newOverrides;
-        });
-      }
+    if (overrideRole) {
+      setRoleOverrides(prev => {
+        const newOverrides = { ...prev };
+        delete newOverrides[id];
+        return newOverrides;
+      });
+    }
 
-      if (targetProfile && user) {
-        await ActivityService.logActivity({
-          user_id: user.id,
-          user_name: user.name,
-          user_role: user.role,
-          branch_name: user.branchName,
-          action_type: newStatus === "APPROVED" ? "PROFILE_APPROVED" : "SYSTEM_EVENT",
-          details: `${newStatus === "APPROVED" ? "Approved" : "Rejected"} registration application of "${targetProfile.full_name}" for ${overrideRole || targetProfile.role} in branch "${targetProfile.branch_name || 'N/A'}".`
-        });
-      }
-    } else {
-      console.error("Error updating status:", error);
+    if (targetProfile && user) {
+      await ActivityService.logActivity({
+        user_id: user.id,
+        user_name: user.name,
+        user_role: user.role,
+        branch_name: user.branchName,
+        action_type: newStatus === "APPROVED" ? "PROFILE_APPROVED" : "SYSTEM_EVENT",
+        details: `${newStatus === "APPROVED" ? "Approved" : "Rejected"} registration application of "${targetProfile.full_name}" for ${overrideRole || targetProfile.role} in branch "${targetProfile.branch_name || 'N/A'}".`
+      });
     }
   };
 
@@ -103,9 +85,8 @@ export function Approvals() {
 
   const visiblePasswordRequests = passwordRequests.filter(req => {
     if (user?.role === "GLOBAL_ADMIN") {
-        // Global admin can approve Branch Admin passwords, and maybe others if needed. Let's allow all for Global, or restrict it?
-        // Prompt says "the global admin should approve for branches"
-        return true; 
+        // Global admin should only approve requests from the Branches
+        return req.role === "BRANCH_ADMIN" || req.role === "GLOBAL_ADMIN"; 
     }
     if (user?.role === "BRANCH_ADMIN" && req.branchName === user.branchName) {
         // "the branches should approve for branch units"
@@ -117,6 +98,19 @@ export function Approvals() {
     req.userEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (req.branchName && req.branchName.toLowerCase().includes(searchTerm.toLowerCase()))
   );
+
+  const pendingPasswordCount = passwordRequests.filter(req => {
+    if (!user) return false;
+    if (req.status !== "PENDING") return false;
+    if (user.role === "GLOBAL_ADMIN") {
+        return req.role === "BRANCH_ADMIN" || req.role === "GLOBAL_ADMIN"; 
+    }
+    if (user.role === "BRANCH_ADMIN" && req.branchName === user.branchName) {
+        if (req.role === "GLOBAL_ADMIN" || req.role === "BRANCH_ADMIN") return false;
+        return true;
+    }
+    return false;
+  }).length;
 
   const handleApprovePassword = async (req: any) => {
     try {
@@ -133,7 +127,7 @@ export function Approvals() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-royal-purple flex items-center justify-center shadow-lg">
             <Key className="w-5 h-5 text-white" />
@@ -143,6 +137,17 @@ export function Approvals() {
             <p className="text-lilac/80 font-medium">Manage platform access, roles, and registrations</p>
           </div>
         </div>
+
+        {(user?.role === "GLOBAL_ADMIN" || user?.role === "BRANCH_ADMIN") && (
+          <button
+            onClick={handlePurge}
+            disabled={purging}
+            className="self-start md:self-auto flex items-center gap-2 bg-rose-500/10 hover:bg-rose-500/20 active:bg-rose-500/30 text-rose-400 border border-rose-500/30 rounded-xl px-4 py-2 text-xs font-bold font-sans transition-all shadow-md cursor-pointer disabled:opacity-50"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            {purging ? "Purging..." : purgeSuccess ? "Demo Seed Purged ✔" : "Remove Demo Seed Data"}
+          </button>
+        )}
       </div>
 
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -165,8 +170,8 @@ export function Approvals() {
             }`}
           >
             Password Requests
-            {passwordRequests.filter(r => r.status === "PENDING").length > 0 && (
-              <span className="bg-amber-500 text-black text-[10px] px-2 py-0.5 rounded-full">{passwordRequests.filter(r => r.status === "PENDING").length}</span>
+            {pendingPasswordCount > 0 && (
+              <span className="bg-amber-500 text-black text-[10px] px-2 py-0.5 rounded-full">{pendingPasswordCount}</span>
             )}
           </button>
           <button

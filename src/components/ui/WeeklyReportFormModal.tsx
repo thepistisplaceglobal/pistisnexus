@@ -16,6 +16,7 @@ export function WeeklyReportFormModal({ isOpen, onClose }: WeeklyReportFormModal
   const user = useAppStore((state) => state.user);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [meetingHeld, setMeetingHeld] = useState<"Yes" | "No" | "">("");
+  const [formData, setFormData] = useState<Record<string, any>>({});
 
   if (!isOpen || !user) return null;
 
@@ -36,7 +37,7 @@ export function WeeklyReportFormModal({ isOpen, onClose }: WeeklyReportFormModal
         submitter_name: user.name,
         metrics: {
           meetingHeld,
-          // In a real app we'd capture all form states here, for this MVP we stub the body.
+          ...formData,
           submitted_at: new Date().toISOString()
         },
         status: 'PENDING_BRANCH'
@@ -59,17 +60,26 @@ export function WeeklyReportFormModal({ isOpen, onClose }: WeeklyReportFormModal
 
   const isFollowUp = user.deptName?.toLowerCase().includes("follow");
 
+  const renderField = (label: string, type: "text" | "number" | "textarea" = "text") => (
+    <FormField
+      label={label}
+      type={type}
+      value={formData[label] ?? ""}
+      onChange={(val) => setFormData(prev => ({ ...prev, [label]: val }))}
+    />
+  );
+
   const renderDepartmentFields = () => (
     <>
       <div className="space-y-4 pt-2 border-t border-white/10">
         <h4 className="text-sm font-semibold text-lilac uppercase tracking-wider">General Overview</h4>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FormField label="Focus for the week" type="text" />
-          <FormField label="Achievement for the week" type="text" />
-          <FormField label="Challenges encountered" type="text" />
-          <FormField label="What's the way out" type="text" />
+          {renderField("Focus for the week", "text")}
+          {renderField("Achievement for the week", "text")}
+          {renderField("Challenges encountered", "text")}
+          {renderField("What's the way out", "text")}
           <div className="md:col-span-2">
-            <FormField label="Actions taken to better focus members on the ministry's vision and goals" type="textarea" />
+            {renderField("Actions taken to better focus members on the ministry's vision and goals", "textarea")}
           </div>
         </div>
       </div>
@@ -81,25 +91,25 @@ export function WeeklyReportFormModal({ isOpen, onClose }: WeeklyReportFormModal
             <label className="text-xs text-lavender/70 font-medium">Did your department have their weekly meeting this week?</label>
             <div className="flex gap-4">
               <label className="flex items-center gap-2 text-white text-sm">
-                <input type="radio" name="meetingHeld" value="Yes" onChange={() => setMeetingHeld("Yes")} className="accent-royal-purple" /> Yes
+                <input type="radio" name="meetingHeld" value="Yes" checked={meetingHeld === "Yes"} onChange={() => setMeetingHeld("Yes")} className="accent-royal-purple" /> Yes
               </label>
               <label className="flex items-center gap-2 text-white text-sm">
-                <input type="radio" name="meetingHeld" value="No" onChange={() => setMeetingHeld("No")} className="accent-royal-purple" /> No
+                <input type="radio" name="meetingHeld" value="No" checked={meetingHeld === "No"} onChange={() => setMeetingHeld("No")} className="accent-royal-purple" /> No
               </label>
             </div>
           </div>
           {meetingHeld === "No" && (
             <div className="md:col-span-2">
-              <FormField label="If No, why?" type="text" />
+              {renderField("If No, why?", "text")}
             </div>
           )}
-          <FormField label="Total number of department workers" type="number" />
-          <FormField label="Total number available for workforce meeting" type="number" />
-          <FormField label="Total number available for Friday service" type="number" />
-          <FormField label="Total number available for Sunday service" type="number" />
-          <FormField label="How many people joined your unit this week?" type="number" />
+          {renderField("Total number of department workers", "number")}
+          {renderField("Total number available for workforce workforce meeting", "number")}
+          {renderField("Total number available for Friday service", "number")}
+          {renderField("Total number available for Sunday service", "number")}
+          {renderField("How many people joined your unit this week?", "number")}
           <div className="md:col-span-2">
-            <FormField label="List of department workers that were absent" type="textarea" />
+            {renderField("List of department workers that were absent", "textarea")}
           </div>
         </div>
       </div>
@@ -108,12 +118,13 @@ export function WeeklyReportFormModal({ isOpen, onClose }: WeeklyReportFormModal
         <div className="space-y-4 pt-4 border-t border-white/10">
           <h4 className="text-sm font-semibold text-lilac uppercase tracking-wider">Follow-Up & Guest Metrics</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField label="Number of first-time guests" type="number" />
-            <FormField label="Number of returning guests" type="number" />
-            <FormField label="Total converted to members" type="number" />
-            <FormField label="Total calls made this week" type="number" />
+            {renderField("Number of first-time guests", "number")}
+            {renderField("Number of returning guests", "number")}
+            {renderField("Total converted to members", "number")}
+            {renderField("Total calls made this week", "number")}
+            {renderField("Number of souls won in Church (gave their lives to Jesus)", "number")}
             <div className="md:col-span-2">
-              <FormField label="General observations & guest feedback" type="textarea" />
+              {renderField("General observations & guest feedback", "textarea")}
             </div>
           </div>
         </div>
@@ -121,11 +132,12 @@ export function WeeklyReportFormModal({ isOpen, onClose }: WeeklyReportFormModal
         <div className="space-y-4 pt-4 border-t border-white/10">
           <h4 className="text-sm font-semibold text-lilac uppercase tracking-wider">Evangelism Report</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField label="When did your department engage in evangelism this week" type="text" />
-            <FormField label="Unit evangelism target for the week" type="number" />
-            <FormField label="Number of people reached" type="number" />
-            <FormField label="How many came on Friday" type="number" />
-            <FormField label="How many came on Sunday" type="number" />
+            {renderField("When did your department engage in evangelism this week", "text")}
+            {renderField("Unit evangelism target for the week", "number")}
+            {renderField("Number of people reached", "number")}
+            {renderField("Number of souls won in the mission field (gave their lives to Jesus)", "number")}
+            {renderField("How many came on Friday", "number")}
+            {renderField("How many came on Sunday", "number")}
           </div>
         </div>
       )}
@@ -133,10 +145,10 @@ export function WeeklyReportFormModal({ isOpen, onClose }: WeeklyReportFormModal
       <div className="space-y-4 pt-4 border-t border-white/10">
         <h4 className="text-sm font-semibold text-lilac uppercase tracking-wider">Finance Report</h4>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FormField label="Opening balance (₦)" type="number" />
-          <FormField label="Dues / partnership received this week (₦)" type="number" />
+          {renderField("Opening balance (₦)", "number")}
+          {renderField("Dues / partnership received this week (₦)", "number")}
           <div className="md:col-span-2">
-            <FormField label="List of expenditure & amount for the week" type="textarea" />
+            {renderField("List of expenditure & amount for the week", "textarea")}
           </div>
         </div>
       </div>
@@ -144,8 +156,8 @@ export function WeeklyReportFormModal({ isOpen, onClose }: WeeklyReportFormModal
       <div className="space-y-4 pt-4 border-t border-white/10">
         <h4 className="text-sm font-semibold text-lilac uppercase tracking-wider">Additional Information</h4>
         <div className="grid grid-cols-1 gap-4">
-          <FormField label="Are there needs or concerns for your department that you'd like the ministry to know about?" type="textarea" />
-          <FormField label="What are your departmental goals for next week?" type="textarea" />
+          {renderField("Are there needs or concerns for your department that you'd like the ministry to know about?", "textarea")}
+          {renderField("What are your departmental goals for next week?", "textarea")}
         </div>
       </div>
     </>
@@ -155,34 +167,34 @@ export function WeeklyReportFormModal({ isOpen, onClose }: WeeklyReportFormModal
     <>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-white/10 mt-2">
         <div className="md:col-span-2">
-          <FormField label="Focus for the week" type="text" />
+          {renderField("Focus for the week", "text")}
         </div>
         <div className="flex flex-col gap-1.5 md:col-span-2">
           <label className="text-xs text-lavender/70 font-medium">Meeting held this week?</label>
           <div className="flex gap-4">
             <label className="flex items-center gap-2 text-white text-sm">
-              <input type="radio" name="cellMeeting" value="Yes" onChange={() => setMeetingHeld("Yes")} className="accent-royal-purple" /> Yes
+              <input type="radio" name="cellMeeting" value="Yes" checked={meetingHeld === "Yes"} onChange={() => setMeetingHeld("Yes")} className="accent-royal-purple" /> Yes
             </label>
             <label className="flex items-center gap-2 text-white text-sm">
-              <input type="radio" name="cellMeeting" value="No" onChange={() => setMeetingHeld("No")} className="accent-royal-purple" /> No
+              <input type="radio" name="cellMeeting" value="No" checked={meetingHeld === "No"} onChange={() => setMeetingHeld("No")} className="accent-royal-purple" /> No
             </label>
           </div>
         </div>
         {meetingHeld === "No" && (
           <div className="md:col-span-2">
-            <FormField label="If No, why?" type="text" />
+            {renderField("If No, why?", "text")}
           </div>
         )}
-        <FormField label="Total membership" type="number" />
-        <FormField label="Number of members present" type="number" />
-        <FormField label="Number of first timers" type="number" />
-        <FormField label="New converts" type="number" />
+        {renderField("Total membership", "number")}
+        {renderField("Number of members present", "number")}
+        {renderField("Number of first timers", "number")}
+        {renderField("New converts", "number")}
         <div className="md:col-span-2">
-          <FormField label="Evangelism details / Locations" type="textarea" />
+          {renderField("Evangelism details / Locations", "textarea")}
         </div>
-        <FormField label="Cell offering amount (₦)" type="number" />
+        {renderField("Cell offering amount (₦)", "number")}
         <div className="md:col-span-2">
-          <FormField label="General remarks & prayer requests" type="textarea" />
+          {renderField("General remarks & prayer requests", "textarea")}
         </div>
       </div>
     </>
@@ -192,34 +204,34 @@ export function WeeklyReportFormModal({ isOpen, onClose }: WeeklyReportFormModal
     <>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-white/10 mt-2">
         <div className="md:col-span-2">
-          <FormField label="Focus for the week" type="text" />
+          {renderField("Focus for the week", "text")}
         </div>
         <div className="flex flex-col gap-1.5 md:col-span-2">
           <label className="text-xs text-lavender/70 font-medium">Meeting / Activity held this week?</label>
           <div className="flex gap-4">
             <label className="flex items-center gap-2 text-white text-sm">
-              <input type="radio" name="igMeeting" value="Yes" onChange={() => setMeetingHeld("Yes")} className="accent-royal-purple" /> Yes
+              <input type="radio" name="igMeeting" value="Yes" checked={meetingHeld === "Yes"} onChange={() => setMeetingHeld("Yes")} className="accent-royal-purple" /> Yes
             </label>
             <label className="flex items-center gap-2 text-white text-sm">
-              <input type="radio" name="igMeeting" value="No" onChange={() => setMeetingHeld("No")} className="accent-royal-purple" /> No
+              <input type="radio" name="igMeeting" value="No" checked={meetingHeld === "No"} onChange={() => setMeetingHeld("No")} className="accent-royal-purple" /> No
             </label>
           </div>
         </div>
         {meetingHeld === "No" && (
           <div className="md:col-span-2">
-            <FormField label="If No, why?" type="text" />
+            {renderField("If No, why?", "text")}
           </div>
         )}
-        <FormField label="Total active members" type="number" />
-        <FormField label="Total attendance" type="number" />
+        {renderField("Total active members", "number")}
+        {renderField("Total attendance", "number")}
         <div className="md:col-span-2">
-          <FormField label="Progress of group projects" type="textarea" />
+          {renderField("Progress of group projects", "textarea")}
         </div>
         <div className="md:col-span-2">
-          <FormField label="Upcoming events / plans" type="textarea" />
+          {renderField("Upcoming events / plans", "textarea")}
         </div>
         <div className="md:col-span-2">
-          <FormField label="Requests for support from ministry" type="textarea" />
+          {renderField("Requests for support from ministry", "textarea")}
         </div>
       </div>
     </>
@@ -288,13 +300,25 @@ export function WeeklyReportFormModal({ isOpen, onClose }: WeeklyReportFormModal
   );
 }
 
-function FormField({ label, type = "text" }: { label: string; type?: "text" | "number" | "textarea" }) {
+function FormField({ 
+  label, 
+  type = "text", 
+  value, 
+  onChange 
+}: { 
+  label: string; 
+  type?: "text" | "number" | "textarea"; 
+  value: any; 
+  onChange: (val: any) => void;
+}) {
   return (
     <div className="flex flex-col gap-1.5">
       <label className="text-xs text-lavender/70 font-medium">{label}</label>
       {type === "textarea" ? (
         <textarea
           rows={3}
+          value={value ?? ""}
+          onChange={(e) => onChange(e.target.value)}
           className="bg-[#0B0118]/50 border border-royal-purple/30 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-royal-purple resize-none text-sm placeholder-white/20"
           placeholder="Enter details..."
           required
@@ -302,6 +326,11 @@ function FormField({ label, type = "text" }: { label: string; type?: "text" | "n
       ) : (
         <input
           type={type}
+          value={value ?? ""}
+          onChange={(e) => {
+            const val = type === "number" ? (e.target.value === "" ? "" : Number(e.target.value)) : e.target.value;
+            onChange(val);
+          }}
           className="bg-[#0B0118]/50 border border-royal-purple/30 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-royal-purple text-sm placeholder-white/20"
           placeholder={`Enter ${label.toLowerCase()}...`}
           required
