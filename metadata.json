@@ -1,6 +1,6 @@
 {
   "name": "Pistis Nexus",
-  "description": "Progressive Web App Church Operating System with Royal Purple Glassmorphism UI",
+  "description": "The Pistis Place Administrative App",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
