@@ -275,7 +275,7 @@ export function Login() {
             Pistis Nexus
           </h1>
           <p className="text-xs font-semibold text-[#B193FB] uppercase tracking-widest max-w-xs mx-auto">
-            {view === "LOGIN_SELECT" ? "The Pistis Place Administrative App" : "Leader Registration Request"}
+            {view === "LOGIN_SELECT" ? "The Pistis Place Administrative System" : "Leader Registration Request"}
           </p>
         </div>
 
