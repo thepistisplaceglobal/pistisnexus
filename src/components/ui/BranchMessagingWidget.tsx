@@ -86,14 +86,19 @@ export function BranchMessagingWidget() {
         ) : (
           branchMessages.map((msg) => (
             <div key={msg.id} className="bg-white/5 border border-white/10 rounded-lg p-3 group hover:bg-white/10 transition-colors">
-              <div className="flex justify-between items-start mb-2">
-                <div className="flex items-center gap-2">
+              <div className="flex justify-between items-start mb-2 flex-wrap gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-xs font-semibold text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-sm flex items-center gap-2">
                     {onlineUsers.has(msg.author_name) && (
                       <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" title="Online" />
                     )}
                     {msg.author_name}
                   </span>
+                  {msg.target_unit && (
+                    <span className="text-[10px] font-bold text-amber-300 bg-amber-400/10 px-2.5 py-0.5 rounded-full border border-amber-400/20">
+                      Target: {msg.target_unit}
+                    </span>
+                  )}
                 </div>
                 <span className="text-[10px] text-white/40">
                   {new Date(msg.created_at).toLocaleDateString()}

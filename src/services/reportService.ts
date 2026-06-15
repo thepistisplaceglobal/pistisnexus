@@ -10,6 +10,18 @@ export interface UnitReport {
   submitter_name: string;
   metrics: any;
   status: string;
+  minutes?: string;
+  created_at: string;
+}
+
+export interface BranchReport {
+  id: string;
+  branch_name: string;
+  submitted_by: string | null;
+  submitter_name: string;
+  metrics: any;
+  status: string;
+  minutes?: string;
   created_at: string;
 }
 
@@ -41,6 +53,125 @@ export const ReportService = {
       return [];
     }
     return data || [];
+  },
+
+  /**
+   * Fetches all unit reports for a specific branch (including approved ones).
+   */
+  async getBranchUnitReports(branchName: string): Promise<UnitReport[]> {
+    const { data, error } = await supabase
+      .from('unit_reports')
+      .select('*')
+      .eq('branch_name', branchName)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error("Error fetching branch unit reports:", error);
+      return [];
+    }
+    return data || [];
+  },
+
+  /**
+   * Fetches all pending branch reports for the Global HQ audit.
+   */
+  async getPendingBranchReports(): Promise<BranchReport[]> {
+    const { data, error } = await supabase
+      .from('branch_reports')
+      .select('*')
+      .eq('status', 'PENDING_HQ')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error("Error fetching pending branch reports:", error);
+      return [];
+    }
+    return data || [];
+  },
+
+  /**
+   * Fetches all approved/archived branch reports.
+   */
+  async getArchivedBranchReports(): Promise<BranchReport[]> {
+    const { data, error } = await supabase
+      .from('branch_reports')
+      .select('*')
+      .eq('status', 'APPROVED')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error("Error fetching archived branch reports:", error);
+      return [];
+    }
+    return data || [];
+  },
+
+  /**
+   * Updates status and adds minutes/feedback to a branch report.
+   */
+  async updateBranchReportStatus(id: string, status: string, minutes?: string): Promise<boolean> {
+    try {
+      const updatePayload: any = { status };
+      if (minutes !== undefined) {
+        updatePayload.minutes = minutes;
+      }
+      const { error } = await supabase
+        .from('branch_reports')
+        .update(updatePayload)
+        .eq('id', id);
+
+      if (error) {
+        // Fallback: If 'minutes' column isn't inside DB schema yet, we can save in metrics as fallback
+        const { data: current } = await supabase.from('branch_reports').select('metrics').eq('id', id).single();
+        if (current) {
+          const updatedMetrics = { ...current.metrics, minutes };
+          await supabase
+            .from('branch_reports')
+            .update({ status, metrics: updatedMetrics })
+            .eq('id', id);
+        } else {
+          throw error;
+        }
+      }
+      return true;
+    } catch (err) {
+      console.error("Error updating branch report:", err);
+      return false;
+    }
+  },
+
+  /**
+   * Updates status and adds minutes/feedback to a unit report.
+   */
+  async updateUnitReportStatus(id: string, status: string, minutes?: string): Promise<boolean> {
+    try {
+      const updatePayload: any = { status };
+      if (minutes !== undefined) {
+        updatePayload.minutes = minutes;
+      }
+      const { error } = await supabase
+        .from('unit_reports')
+        .update(updatePayload)
+        .eq('id', id);
+
+      if (error) {
+        // Fallback to storing in metrics JSON
+        const { data: current } = await supabase.from('unit_reports').select('metrics').eq('id', id).single();
+        if (current) {
+          const updatedMetrics = { ...current.metrics, minutes };
+          await supabase
+            .from('unit_reports')
+            .update({ status, metrics: updatedMetrics })
+            .eq('id', id);
+        } else {
+          throw error;
+        }
+      }
+      return true;
+    } catch (err) {
+      console.error("Error updating unit report:", err);
+      return false;
+    }
   },
 
   /**

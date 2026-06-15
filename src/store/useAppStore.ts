@@ -49,6 +49,7 @@ export interface BranchMessage {
   author_name: string;
   author_role: string;
   branch_name: string;
+  target_unit?: string;
   created_at: string;
 }
 
@@ -124,6 +125,8 @@ interface AppState {
   updateProfileStatus: (id: string, updates: Partial<Profile>) => Promise<void>;
   clearTestData: (currentUser: User | null) => Promise<void>;
   bulkDeleteDatabaseRecords: (tables: string[]) => Promise<{ success: boolean; results: Record<string, { deleted: number; error?: string }> }>;
+  theme: "dark" | "light";
+  setTheme: (theme: "dark" | "light") => void;
 }
 
 const idbStorage = {
@@ -174,6 +177,8 @@ export const useAppStore = create<AppState>()(
       updateUser: (updates) => set((state) => ({ user: state.user ? { ...state.user, ...updates } : null })),
       currentModule: "Dashboard",
       setCurrentModule: (module) => set({ currentModule: module }),
+      theme: "dark",
+      setTheme: (theme) => set({ theme }),
       metrics: {
         totalAttendance: 12450,
         totalIncome: 154200,

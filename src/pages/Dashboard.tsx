@@ -17,6 +17,8 @@ import { ReportDeadlineAlert } from "@/components/ui/ReportDeadlineAlert";
 import { LeaderActivityChart } from "@/components/ui/LeaderActivityChart";
 import { GlobalMessagingWidget } from "@/components/ui/GlobalMessagingWidget";
 import { BranchMessagingWidget } from "@/components/ui/BranchMessagingWidget";
+import { GlobalToBranchMessagingWidget } from "@/components/ui/GlobalToBranchMessagingWidget";
+import { BranchToUnitMessagingWidget } from "@/components/ui/BranchToUnitMessagingWidget";
 import { BroadcastReachWidget } from "@/components/ui/BroadcastReachWidget";
 import { UpcomingBirthdaysWidget } from "@/components/ui/UpcomingBirthdaysWidget";
 import { AttendanceTrendsWidget } from "@/components/ui/AttendanceTrendsWidget";
@@ -443,6 +445,7 @@ export function Dashboard() {
                 <GlobalLeaderboardWidget />
                 <GlobalAIInsight />
                 <GlobalMessagingWidget />
+                <GlobalToBranchMessagingWidget />
                 <BroadcastReachWidget />
                 <UpcomingBirthdaysWidget />
               </>
@@ -450,6 +453,7 @@ export function Dashboard() {
               <>
                 <BranchPendingReportsWidget />
                 <BranchMessagingWidget />
+                <BranchToUnitMessagingWidget />
                 <BroadcastReachWidget />
                 <UpcomingBirthdaysWidget />
                 <BranchAIInsight />
