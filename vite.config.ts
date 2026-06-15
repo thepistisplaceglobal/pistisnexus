@@ -22,7 +22,30 @@ export default defineConfig(() => {
           background_color: '#0B0118',
           display: 'standalone',
           start_url: '/',
-          icons: []
+          icons: [
+            {
+              src: '/favicon.png',
+              sizes: '192x192',
+              type: 'image/png'
+            },
+            {
+              src: '/favicon.png',
+              sizes: '512x512',
+              type: 'image/png'
+            },
+            {
+              src: '/favicon.png',
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'any'
+            },
+            {
+              src: '/favicon.png',
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'maskable'
+            }
+          ]
         },
         workbox: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
