@@ -17,7 +17,7 @@ export default defineConfig(() => {
         manifest: {
           name: 'Pistis Nexus',
           short_name: 'Nexus',
-          description: 'The Pistis Place Administrative App',
+          description: 'The Pistis Place Administrative System',
           theme_color: '#0B0118',
           background_color: '#0B0118',
           display: 'standalone',

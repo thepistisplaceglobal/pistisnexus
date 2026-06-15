@@ -1,6 +1,6 @@
 {
   "name": "Pistis Nexus",
-  "description": "The Pistis Place Administrative App",
+  "description": "The Pistis Place Administrative System",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
