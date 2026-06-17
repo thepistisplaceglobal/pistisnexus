@@ -172,7 +172,7 @@ export function BranchToUnitMessagingWidget() {
                     HQ/Branch Admin
                   </span>
                   <span className="text-[9px] text-white/40">
-                    {new Date(msg.created_at).toLocaleDateString()}
+                    {new Date(msg.created_at).toLocaleDateString()} at {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>
                 <p className="text-white/80 text-xs leading-relaxed whitespace-pre-wrap">

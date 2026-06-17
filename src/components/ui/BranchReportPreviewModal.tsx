@@ -144,6 +144,44 @@ export function BranchReportPreviewModal({ isOpen, onClose, branchName, onSubmit
                    </p>
                  </div>
                </div>
+
+               {compiledSummary?.interestGroupsStatus && (
+                 <div className="space-y-3 pt-2 border-t border-white/5">
+                   <h4 className="text-sm tracking-wide font-semibold text-lilac uppercase">Interest Group Metrics Tracker</h4>
+                   <div className="bg-[#0B0118]/50 border border-royal-purple/30 rounded-lg p-3 text-sm text-white/80">
+                     <p className="flex justify-between">
+                       <span>Groups that Submitted Metrics:</span>
+                       <span className="font-bold text-emerald-400">{compiledSummary.interestGroupsStatus.submitted} / {compiledSummary.interestGroupsStatus.total}</span>
+                     </p>
+                   </div>
+                 </div>
+               )}
+
+               {compiledSummary?.foundationStatus && (
+                 <div className="space-y-3 pt-2 border-t border-white/5">
+                   <h4 className="text-sm tracking-wide font-semibold text-lilac uppercase">Foundation School Tracker</h4>
+                   <div className="bg-[#0B0118]/50 border border-royal-purple/30 rounded-lg p-3 text-sm text-white/80 space-y-2">
+                     <div className="flex justify-between border-b border-white/5 pb-2">
+                       <span>Submission Status:</span>
+                       <span className={`font-bold ${compiledSummary.foundationStatus.submitted ? 'text-emerald-400' : 'text-amber-400'}`}>
+                         {compiledSummary.foundationStatus.submitted ? 'Verified & Included' : 'Pending'}
+                       </span>
+                     </div>
+                     {compiledSummary.foundationStatus.submitted && (
+                       <>
+                         <div className="flex justify-between border-b border-white/5 pb-2">
+                           <span>Enrolled Active Students Count:</span>
+                           <span className="font-semibold text-white">{compiledSummary.foundationStatus.enrolledCount} Students</span>
+                         </div>
+                         <div className="flex justify-between">
+                           <span>Graduands Tracked:</span>
+                           <span className="font-semibold text-[#B193FB]">{compiledSummary.foundationStatus.graduatedCount} Candidates</span>
+                         </div>
+                       </>
+                     )}
+                   </div>
+                 </div>
+               )}
             </div>
 
             <div className="pt-4 border-t border-white/10 flex justify-end gap-3 shrink-0">

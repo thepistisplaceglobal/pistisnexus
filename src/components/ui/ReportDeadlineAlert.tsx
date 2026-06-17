@@ -13,7 +13,7 @@ export function ReportDeadlineAlert() {
   useEffect(() => {
     if (!user) return;
     const isBranchAdmin = user.role === 'BRANCH_ADMIN';
-    const isSubLeader = ['DEPT_LEADER', 'CELL_LEADER', 'INTEREST_GROUP_LEADER'].includes(user.role);
+    const isSubLeader = ['DEPT_LEADER', 'CELL_LEADER', 'INTEREST_GROUP_LEADER', 'FOUNDATION_LEADER', 'CELL_COORDINATOR'].includes(user.role);
 
     if (!isSubLeader && !isBranchAdmin) return;
 
@@ -23,7 +23,10 @@ export function ReportDeadlineAlert() {
       const isMonday = now.getDay() === 1;
       
       if (isSubLeader && isSunday && !notifiedThisWeek.current) {
-        triggerAlert("Don't forget! Your weekly report is due by 11:59 PM tonight.");
+        const msg = user.role === 'CELL_LEADER'
+          ? "Don't forget! Your weekly cell report is due by 6:00 PM tonight."
+          : "Don't forget! Your weekly report is due by 11:59 PM tonight.";
+        triggerAlert(msg);
         notifiedThisWeek.current = true;
       }
       
@@ -89,24 +92,34 @@ export function ReportDeadlineAlert() {
 
   if (!user) return null;
   const isBranchAdmin = user.role === 'BRANCH_ADMIN';
-  const isSubLeader = ['DEPT_LEADER', 'CELL_LEADER', 'INTEREST_GROUP_LEADER'].includes(user.role);
+  const isSubLeader = ['DEPT_LEADER', 'CELL_LEADER', 'INTEREST_GROUP_LEADER', 'FOUNDATION_LEADER', 'CELL_COORDINATOR'].includes(user.role);
 
   if (!isSubLeader && !isBranchAdmin) return null;
 
   const deadlineMessage = isBranchAdmin 
     ? "Due every Monday at 9:00 AM" 
+    : user.role === 'CELL_LEADER'
+    ? "Due every Sunday at 6:00 PM"
     : "Due every Sunday at 11:59 PM";
 
   const getAlertMessage = () => {
-    return isBranchAdmin 
-      ? "Don't forget! Your branch report is due by 9:00 AM today."
-      : "Don't forget! Your weekly report is due by 11:59 PM tonight.";
+    if (isBranchAdmin) {
+      return "Don't forget! Your branch report is due by 9:00 AM today.";
+    }
+    if (user.role === 'CELL_LEADER') {
+      return "Don't forget! Your weekly cell report is due by 6:00 PM tonight.";
+    }
+    return "Don't forget! Your weekly report is due by 11:59 PM tonight.";
   };
 
   const getTestMessage = () => {
-      return isBranchAdmin 
-      ? "This is a test reminder. Live reminders ring out on Mondays."
-      : "This is a test reminder. Live reminders ring out on Sundays.";
+    if (isBranchAdmin) {
+      return "This is a test reminder. Live reminders ring out on Mondays.";
+    }
+    if (user.role === 'CELL_LEADER') {
+      return "This is a test reminder. Live cell reminders ring out on Sundays at 6:00 PM.";
+    }
+    return "This is a test reminder. Live reminders ring out on Sundays.";
   };
 
   return (

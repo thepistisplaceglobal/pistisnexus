@@ -44,7 +44,7 @@ export function NotificationBanner() {
                   Global Announcement
                 </span>
                 <span className="text-[10px] text-white/50">
-                  {new Date(activeGlobalMessage.created_at).toLocaleDateString()}
+                  {new Date(activeGlobalMessage.created_at).toLocaleDateString()} at {new Date(activeGlobalMessage.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </span>
               </div>
               <p className="text-sm text-white/90">
@@ -80,7 +80,7 @@ export function NotificationBanner() {
                   Branch Update ({activeBranchMessage.branch_name})
                 </span>
                 <span className="text-[10px] text-white/50">
-                  {new Date(activeBranchMessage.created_at).toLocaleDateString()}
+                  {new Date(activeBranchMessage.created_at).toLocaleDateString()} at {new Date(activeBranchMessage.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </span>
               </div>
               <p className="text-sm text-white/90">

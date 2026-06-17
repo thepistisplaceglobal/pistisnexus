@@ -4,13 +4,14 @@ import { get, set as idbSet, del } from "idb-keyval";
 import { supabase } from "@/lib/supabase";
 import { ActivityService } from "@/services/activityService";
 
-export type Role = "GLOBAL_ADMIN" | "BRANCH_ADMIN" | "DEPT_LEADER" | "CELL_LEADER" | "INTEREST_GROUP_LEADER";
+export type Role = "GLOBAL_ADMIN" | "BRANCH_ADMIN" | "DEPT_LEADER" | "CELL_LEADER" | "INTEREST_GROUP_LEADER" | "FOUNDATION_LEADER" | "CELL_COORDINATOR";
 
 export interface User {
   id: string;
   email?: string;
   name: string;
   role: Role;
+  assignedRoles?: Role[];
   branchName?: string;
   deptName?: string;
   groupName?: string;
@@ -70,9 +71,12 @@ export interface Profile {
   email: string;
   full_name: string;
   role: string;
+  assigned_roles?: string[];
   country: string;
   branch_name: string;
   unit_name: string;
+  avatar_url?: string;
+  login_key?: string;
   status: string;
   created_at: string;
 }

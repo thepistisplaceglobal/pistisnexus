@@ -97,7 +97,7 @@ export function GlobalMessagingWidget() {
                   </div>
                 </div>
                 <span className="text-[10px] text-white/40">
-                  {new Date(msg.created_at).toLocaleDateString()}
+                  {new Date(msg.created_at).toLocaleDateString()} at {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </span>
               </div>
               <p className="text-white/90 text-sm leading-relaxed whitespace-pre-wrap">

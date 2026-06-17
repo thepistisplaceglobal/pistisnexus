@@ -12,6 +12,9 @@ import { GlobalTrendsWidget } from "@/components/ui/GlobalTrendsWidget";
 import { GlobalLeaderboardWidget } from "@/components/ui/GlobalLeaderboardWidget";
 import { BranchAIInsight } from "@/components/ui/BranchAIInsight";
 import { BranchPendingReportsWidget } from "@/components/ui/BranchPendingReportsWidget";
+import { BranchAggregationSummaryWidget } from "@/components/ui/BranchAggregationSummaryWidget";
+import { BranchDeadlineViolationAlert } from "@/components/ui/BranchDeadlineViolationAlert";
+import { BranchDepartmentComplianceHeatmap } from "@/components/ui/BranchDepartmentComplianceHeatmap";
 import { OnboardingModal } from "@/components/ui/OnboardingModal";
 import { ReportDeadlineAlert } from "@/components/ui/ReportDeadlineAlert";
 import { LeaderActivityChart } from "@/components/ui/LeaderActivityChart";
@@ -28,6 +31,280 @@ import { Users, Building2, TrendingUp, Sparkles, Activity, Home, Compass } from 
 import { useAppStore } from "@/store/useAppStore";
 import { ActivityStream } from "@/components/ui/ActivityStream";
 
+const DEFAULT_BRANCH_CELLS: Record<string, string[]> = {
+  "Uyo (HQ)": [
+    "Abak Road Home Cell",
+    "Atiku Home Cell",
+    "Ibesikpo Home Cell",
+    "Ikotekpene Road Home Cell",
+    "Ekom Iman and Idoro Home Cell",
+    "Aka Road Home Cell",
+    "AKSU Home Cell",
+    "Nwaniba Home Cell",
+    "Oron Road Home Cell"
+  ],
+  "Calabar": [
+    "Calabar Central Cell",
+    "Marian Road Cell",
+    "Unical Campus Cell",
+    "Watt Market Cell",
+    "Eight Miles Cell"
+  ],
+  "Port Harcourt": [
+    "GRA Phase 2 Cell",
+    "Choba Cell",
+    "Trans-Amadi Cell",
+    "Elelenwo Cell",
+    "Ada George Cell"
+  ],
+  "London": [
+    "Greenwich Cell",
+    "Canary Wharf Cell",
+    "Stratford Cell",
+    "Wembley Cell"
+  ]
+};
+
+function CoordinatorCellManager({ user }: { user: any }) {
+  const branch = user?.branchName || "Uyo (HQ)";
+  const [cells, setCells] = useState<string[]>([]);
+  const [newCellName, setNewCellName] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
+
+  const loadCells = () => {
+    let currentCells = DEFAULT_BRANCH_CELLS[branch] || [];
+    try {
+      const saved = localStorage.getItem("branch_cells");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed[branch]) {
+          currentCells = parsed[branch];
+        }
+      } else {
+        localStorage.setItem("branch_cells", JSON.stringify(DEFAULT_BRANCH_CELLS));
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    setCells(currentCells);
+  };
+
+  useEffect(() => {
+    loadCells();
+  }, [branch]);
+
+  const handleAddCell = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCellName.trim()) return;
+
+    try {
+      const savedStr = localStorage.getItem("branch_cells") || JSON.stringify(DEFAULT_BRANCH_CELLS);
+      const val = JSON.parse(savedStr);
+      if (!val[branch]) val[branch] = [];
+      
+      if (val[branch].includes(newCellName.trim())) {
+        alert("This cell name already exists!");
+        return;
+      }
+
+      const updated = [...val[branch], newCellName.trim()];
+      val[branch] = updated;
+      localStorage.setItem("branch_cells", JSON.stringify(val));
+      setCells(updated);
+      setNewCellName("");
+      setSuccessMsg(`"${newCellName.trim()}" successfully added to local registry!`);
+      setTimeout(() => setSuccessMsg(""), 3500);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  return (
+    <GlassCard className="p-6">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="p-2.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20">
+          <Home className="w-5 h-5 text-indigo-400" />
+        </div>
+        <div>
+          <h3 className="text-white font-bold text-base">District Cell Registry</h3>
+          <p className="text-xs text-lilac/60 font-medium">Register authorized Home Cells under your {branch} administration</p>
+        </div>
+      </div>
+
+      <form onSubmit={handleAddCell} className="flex gap-2 mb-4">
+        <input 
+          type="text"
+          placeholder="New Cell Name (e.g. Ikpa Road Home Cell)"
+          required
+          value={newCellName}
+          onChange={e => setNewCellName(e.target.value)}
+          className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white text-sm focus:border-royal-purple focus:ring-1 focus:ring-royal-purple/50 outline-none transition-all"
+        />
+        <button 
+          type="submit"
+          className="bg-royal-purple hover:bg-royal-purple/80 text-white font-bold px-4 py-2 rounded-xl text-xs uppercase tracking-wider transition-all cursor-pointer shadow-md"
+        >
+          Add Cell
+        </button>
+      </form>
+
+      {successMsg && (
+        <div className="p-2.5 mb-3 text-xs bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg">
+          {successMsg}
+        </div>
+      )}
+
+      <div className="max-h-[185px] overflow-y-auto space-y-1.5 pr-1">
+        {cells.map((cell, index) => (
+          <div key={index} className="flex justify-between items-center py-2 px-3 bg-white/5 rounded-lg border border-white/5 text-xs text-lavender/90">
+            <span>{cell}</span>
+            <span className="text-[10px] text-indigo-400 font-bold bg-indigo-500/10 px-2 py-0.5 rounded-full">Active</span>
+          </div>
+        ))}
+      </div>
+    </GlassCard>
+  );
+}
+
+function LeaderRosterManager({ user, updateUser }: { user: any; updateUser: any }) {
+  const [baseMembership, setBaseMembership] = useState(user?.baseMembership || 15);
+  const [members, setMembers] = useState<string[]>([]);
+  const [newMemberName, setNewMemberName] = useState("");
+  const [isEditingBase, setIsEditingBase] = useState(false);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(`unit_members_${user?.id}`);
+      if (saved) {
+        setMembers(JSON.parse(saved));
+      } else {
+        const defaults = ["Sister Sarah Paul", "Brother Jerry Thompson", "Sister Deborah Elijah"];
+        setMembers(defaults);
+        localStorage.setItem(`unit_members_${user?.id}`, JSON.stringify(defaults));
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, [user?.id]);
+
+  const handleUpdateBase = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateUser({ baseMembership: Number(baseMembership) });
+    setIsEditingBase(false);
+  };
+
+  const handleAddMember = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMemberName.trim()) return;
+
+    const updated = [...members, newMemberName.trim()];
+    setMembers(updated);
+    localStorage.setItem(`unit_members_${user?.id}`, JSON.stringify(updated));
+    setNewMemberName("");
+  };
+
+  const opponentRemoveMember = (idxToRemove: number) => {
+    const updated = members.filter((_, idx) => idx !== idxToRemove);
+    setMembers(updated);
+    localStorage.setItem(`unit_members_${user?.id}`, JSON.stringify(updated));
+  };
+
+  return (
+    <GlassCard className="p-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-5 border-b border-white/5 pb-4">
+        <div className="text-left">
+          <h3 className="text-white font-bold text-base flex items-center gap-2">
+            <Users className="w-5 h-5 text-indigo-400 animate-pulse" />
+            Unit Roster & Membership strength
+          </h3>
+          <p className="text-xs text-lilac/60">Configure strength baselines and maintain your active member directory</p>
+        </div>
+        
+        <div className="flex items-center gap-2 bg-white/5 border border-white/10 px-3.5 py-1.5 rounded-xl">
+          <span className="text-xs font-semibold text-lilac/70">Total Strength:</span>
+          {isEditingBase ? (
+            <form onSubmit={handleUpdateBase} className="flex items-center gap-1.5">
+              <input 
+                type="number"
+                min="0"
+                required
+                value={baseMembership}
+                onChange={e => setBaseMembership(Number(e.target.value))}
+                className="w-16 bg-[#160a2c] text-white border border-indigo-500/40 rounded px-1.5 py-0.5 text-xs font-bold text-center"
+              />
+              <button type="submit" className="text-[10px] text-emerald-400 uppercase tracking-widest font-extrabold hover:underline">Save</button>
+            </form>
+          ) : (
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-black text-white">{user?.baseMembership || baseMembership}</span>
+              <button 
+                onClick={() => setIsEditingBase(true)}
+                className="text-[10px] text-royal-purple uppercase tracking-widest font-extrabold hover:underline cursor-pointer"
+              >
+                Edit
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <div className="flex justify-between items-center mb-3">
+             <span className="text-xs uppercase tracking-wider text-lilac/60 font-semibold text-left">Active Members Roll ({members.length})</span>
+          </div>
+          <div className="max-h-[220px] overflow-y-auto space-y-1.5 pr-1 bg-black/20 rounded-xl p-3 border border-white/5">
+             {members.length === 0 ? (
+               <p className="text-xs text-lilac/40 text-center py-6">No members listed yet. Add unit members below.</p>
+             ) : (
+               members.map((member, index) => (
+                 <div key={index} className="flex justify-between items-center py-2 px-3 bg-[#130626]/60 rounded-lg border border-white/5 text-xs text-lavender/90 hover:bg-[#1c0f38] transition-colors">
+                   <div className="flex items-center gap-2">
+                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                     <span className="text-left">{member}</span>
+                   </div>
+                   <button 
+                     onClick={() => opponentRemoveMember(index)}
+                     className="text-rose-400 hover:text-rose-300 font-extrabold text-[10px] uppercase cursor-pointer tracking-wider"
+                   >
+                     Remove
+                   </button>
+                 </div>
+               ))
+             )}
+          </div>
+        </div>
+
+        <div className="flex flex-col justify-start">
+          <span className="text-xs uppercase tracking-wider text-lilac/60 font-semibold mb-3 text-left">Add Custom Unit Member</span>
+          <form onSubmit={handleAddMember} className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] uppercase font-bold text-lilac/50 text-left">Full Name</label>
+              <input 
+                type="text"
+                placeholder="e.g. Brother Barnabas Paul"
+                required
+                value={newMemberName}
+                onChange={e => setNewMemberName(e.target.value)}
+                className="bg-[#120524] border border-white/10 rounded-xl px-4 py-2 text-white text-sm focus:border-royal-purple focus:ring-1 focus:ring-royal-purple/50 outline-none transition-all"
+              />
+            </div>
+            <button 
+              type="submit"
+              className="bg-royal-purple hover:bg-royal-purple/80 text-white font-bold py-2.5 rounded-xl transition-all text-xs uppercase tracking-widest cursor-pointer shadow-lg mt-1"
+            >
+              Add Member to Roster
+            </button>
+          </form>
+          <div className="mt-4 p-3 rounded-lg bg-indigo-500/5 border border-indigo-500/10 text-[11px] text-lilac/70 leading-relaxed text-left">
+             This member directory is saved uniquely inside this dashboard. Keep your records up to date for pastoral follow-ups.
+          </div>
+        </div>
+      </div>
+    </GlassCard>
+  );
+}
+
 const mockGrowthData = [
   { month: "Jan", attendance: 11200, uyo: 8200, calabar: 3000, firstTimers: 250, returned: 120 },
   { month: "Feb", attendance: 11400, uyo: 8300, calabar: 3100, firstTimers: 280, returned: 140 },
@@ -38,6 +315,7 @@ const mockGrowthData = [
 
 export function Dashboard() {
   const user = useAppStore(state => state.user);
+  const updateUser = useAppStore(state => state.updateUser);
   const [activeLeaderCount, setActiveLeaderCount] = useState<number>(0);
   const [pendingApprovalCount, setPendingApprovalCount] = useState<number>(0);
   const [pulseStats, setPulseStats] = useState({
@@ -160,6 +438,26 @@ export function Dashboard() {
       // Baseline figures (Pistis Place historic baseline defaults)
       const baseUyoMembership = 8520;
       const baseCalabarMembership = 3840;
+
+      // Add dynamically inaugurated Foundation School graduates directly to the membership strength totals
+      let uyoFSGradsCount = 0;
+      let calabarFSGradsCount = 0;
+      try {
+        const storedGrads = localStorage.getItem("fs_graduates");
+        if (storedGrads) {
+          const fsGrads = JSON.parse(storedGrads);
+          if (Array.isArray(fsGrads)) {
+            uyoFSGradsCount = fsGrads.filter((g: any) => g.branch?.toLowerCase().includes("uyo")).length;
+            calabarFSGradsCount = fsGrads.filter((g: any) => g.branch?.toLowerCase().includes("calabar")).length;
+          }
+        } else {
+          // Default fallbacks matching pre-loaded seed data before first open
+          uyoFSGradsCount = 1;
+          calabarFSGradsCount = 1;
+        }
+      } catch (e) {
+        console.warn("Error reading Foundation School graduates storage:", e);
+      }
       
       const baseUyoWeeklySouls = 328;
       const baseCalabarWeeklySouls = 142;
@@ -167,8 +465,8 @@ export function Dashboard() {
       const baseUyoMonthlySouls = 1312; // 328 * 4
       const baseCalabarMonthlySouls = 568; // 142 * 4
 
-      const liveUyoMembership = baseUyoMembership + uyoFollowupConverts;
-      const liveCalabarMembership = baseCalabarMembership + calabarFollowupConverts;
+      const liveUyoMembership = baseUyoMembership + uyoFollowupConverts + uyoFSGradsCount;
+      const liveCalabarMembership = baseCalabarMembership + calabarFollowupConverts + calabarFSGradsCount;
       
       const liveUyoWeeklySouls = baseUyoWeeklySouls + uyoWeeklySouls;
       const liveCalabarWeeklySouls = baseCalabarWeeklySouls + calabarWeeklySouls;
@@ -176,14 +474,64 @@ export function Dashboard() {
       const liveUyoMonthlySouls = baseUyoMonthlySouls + uyoMonthlySouls;
       const liveCalabarMonthlySouls = baseCalabarMonthlySouls + calabarMonthlySouls;
 
+      let cellWeeklySoulsSum = 0;
+      let cellMonthlySoulsSum = 0;
+      let cellMembershipConverts = 0;
+
+      reportList.forEach((report) => {
+        const reportCellName = report.unit_name;
+        const isUserCell = reportCellName && user?.groupName && (reportCellName.toLowerCase() === user.groupName.toLowerCase());
+        const isUserCellType = report.unit_type === "CELL";
+        
+        if (isUserCell || (isUserCellType && (report.leader_id === user?.id || (user?.groupName && report.unit_name?.toLowerCase() === user.groupName.toLowerCase())))) {
+          const metrics = report.metrics || {};
+          const createdAtStr = report.created_at || metrics.submitted_at || new Date().toISOString();
+          const reportDate = new Date(createdAtStr);
+          const diffTime = Math.abs(now.getTime() - reportDate.getTime());
+          const isWeekly = diffTime <= (7 * 24 * 60 * 60 * 1000);
+          const isMonthly = diffTime <= (30 * 24 * 60 * 60 * 1000);
+          
+          let reportSoulsWon = 0;
+          const churchSouls = parseInt(String(metrics["Number of souls won in Church (gave their lives to Jesus)"] || "0").replace(/,/g, ''), 10) || 0;
+          reportSoulsWon += churchSouls;
+          const missionSouls = parseInt(String(metrics["Number of souls won in the mission field (gave their lives to Jesus)"] || "0").replace(/,/g, ''), 10) || 0;
+          reportSoulsWon += missionSouls;
+          const cellConverts = parseInt(String(metrics["New converts"] || "0").replace(/,/g, ''), 10) || 0;
+          reportSoulsWon += cellConverts;
+
+          if (isWeekly) cellWeeklySoulsSum += reportSoulsWon;
+          if (isMonthly) cellMonthlySoulsSum += reportSoulsWon;
+
+          const converts = parseInt(String(metrics["Total converted to members"] || metrics["convertedToMembers"] || "0").replace(/,/g, ''), 10) || 0;
+          cellMembershipConverts += converts;
+        }
+      });
+
+      const liveCellMembership = (user?.baseMembership || 18) + cellMembershipConverts;
+      const liveCellWeeklySouls = cellWeeklySoulsSum || 2;
+      const liveCellMonthlySouls = cellMonthlySoulsSum || 8;
+
       const isUserCalabar = user?.branchName?.toLowerCase().includes("calabar");
+      
+      const branchMembershipVal = user?.role === 'CELL_LEADER' 
+        ? liveCellMembership 
+        : (isUserCalabar ? liveCalabarMembership : liveUyoMembership);
+
+      const branchWeeklySoulsVal = user?.role === 'CELL_LEADER' 
+        ? liveCellWeeklySouls 
+        : (isUserCalabar ? liveCalabarWeeklySouls : liveUyoWeeklySouls);
+
+      const branchMonthlySoulsVal = user?.role === 'CELL_LEADER' 
+        ? liveCellMonthlySouls 
+        : (isUserCalabar ? liveCalabarMonthlySouls : liveUyoMonthlySouls);
+
       setPulseStats({
         globalMembership: liveUyoMembership + liveCalabarMembership,
         globalWeeklySouls: liveUyoWeeklySouls + liveCalabarWeeklySouls,
         globalMonthlySouls: liveUyoMonthlySouls + liveCalabarMonthlySouls,
-        branchMembership: isUserCalabar ? liveCalabarMembership : liveUyoMembership,
-        branchWeeklySouls: isUserCalabar ? liveCalabarWeeklySouls : liveUyoWeeklySouls,
-        branchMonthlySouls: isUserCalabar ? liveCalabarMonthlySouls : liveUyoMonthlySouls,
+        branchMembership: branchMembershipVal,
+        branchWeeklySouls: branchWeeklySoulsVal,
+        branchMonthlySouls: branchMonthlySoulsVal,
       });
     };
 
@@ -214,6 +562,7 @@ export function Dashboard() {
     if (user?.role === 'DEPT_LEADER') return generateSpecificData(user?.deptName || 'Dept', user?.baseMembership || 30);
     if (user?.role === 'CELL_LEADER') return generateSpecificData(user?.groupName || 'Cell', user?.baseMembership || 10);
     if (user?.role === 'INTEREST_GROUP_LEADER') return generateSpecificData(user?.groupName || 'Group', user?.baseMembership || 20);
+    if (user?.role === 'FOUNDATION_LEADER') return generateSpecificData('Foundation School', user?.baseMembership || 25);
     if (user?.role === 'BRANCH_ADMIN') {
         const branchKey = user.branchName?.toLowerCase() || 'uyo';
         return mockGrowthData.map(d => ({ month: d.month, attendance: d[branchKey as keyof typeof d] || d.uyo }));
@@ -236,6 +585,8 @@ export function Dashboard() {
         return { title: `${user?.branchName} - ${user?.groupName} Cell Hub`, sub: "Home Cell Tracker & Metrics" };
       case 'INTEREST_GROUP_LEADER': 
         return { title: `${user?.branchName} - ${user?.groupName} Interest Group Hub`, sub: "Group Activity & Engagement" };
+      case 'FOUNDATION_LEADER': 
+        return { title: `${user?.branchName} - Foundation School Hub`, sub: "Growth Track Admissions & Doctrinal Foundations" };
       default:
         return { title: "Intelligence Hub", sub: "Overview" };
     }
@@ -253,6 +604,8 @@ export function Dashboard() {
         return "Home Cell Leader";
       case "INTEREST_GROUP_LEADER":
         return "Interest Group Leader";
+      case "FOUNDATION_LEADER":
+        return "Foundation School Coordinator";
       default:
         return "Administrator";
     }
@@ -264,6 +617,7 @@ export function Dashboard() {
     <div className="flex flex-col gap-6 md:gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700 font-sans">
       <OnboardingModal />
       <ReportDeadlineAlert />
+      <BranchDeadlineViolationAlert />
       <NotificationBanner />
       {/* Header Context Layer */}
       <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border border-white/10 bg-white/5 p-5 md:p-6 rounded-2xl shadow-sm">
@@ -305,14 +659,18 @@ export function Dashboard() {
               <div className="w-32 h-32 md:w-36 md:h-36 rounded-full bg-gradient-to-tr from-purple-700 to-indigo-600 shadow-[0_0_50px_rgba(120,81,169,0.6)] flex items-center justify-center relative animate-pulse">
                 <div className="absolute inset-1.5 rounded-full bg-[#0B0118]/80 backdrop-blur-sm flex items-center justify-center flex-col">
                   <span className="text-xl md:text-2xl lg:text-3xl font-bold text-white tracking-tighter">
-                    {user?.role === 'GLOBAL_ADMIN' ? (pulseStats.globalMembership / 1000).toFixed(1) + "k" : pulseStats.branchMembership.toLocaleString()}
+                    {user?.role === 'GLOBAL_ADMIN' 
+                      ? (pulseStats.globalMembership / 1000).toFixed(1) + "k" 
+                      : user?.role === 'CELL_LEADER' 
+                      ? (user?.baseMembership || 18).toLocaleString() 
+                      : pulseStats.branchMembership.toLocaleString()}
                   </span>
                   <span className="text-[10px] text-lilac uppercase tracking-wider font-semibold mt-0.5">Membership</span>
                 </div>
               </div>
               <div className="mt-2 text-center">
                 <span className="text-[10px] text-purple-300 font-mono tracking-tight bg-purple-500/15 border border-purple-500/25 px-2.5 py-1 rounded-full whitespace-nowrap">
-                  {user?.role === 'GLOBAL_ADMIN' ? "Global Strength" : `${user?.branchName || "Branch"} Strength`}
+                  {user?.role === 'GLOBAL_ADMIN' ? "Global Strength" : user?.role === 'CELL_LEADER' ? "Cell Strength" : `${user?.branchName || "Branch"} Strength`}
                 </span>
               </div>
             </div>
@@ -322,14 +680,18 @@ export function Dashboard() {
               <div className="w-32 h-32 md:w-36 md:h-36 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-400 shadow-[0_0_50px_rgba(52,211,153,0.6)] flex items-center justify-center relative animate-pulse">
                 <div className="absolute inset-1.5 rounded-full bg-[#0B0118]/80 backdrop-blur-sm flex items-center justify-center flex-col">
                   <span className="text-xl md:text-2xl lg:text-3xl font-bold text-white tracking-tighter">
-                    {user?.role === 'GLOBAL_ADMIN' ? pulseStats.globalWeeklySouls.toLocaleString() : pulseStats.branchWeeklySouls.toLocaleString()}
+                    {user?.role === 'GLOBAL_ADMIN' 
+                      ? pulseStats.globalWeeklySouls.toLocaleString() 
+                      : user?.role === 'CELL_LEADER' 
+                      ? (user?.baseMembership ? Math.max(1, Math.floor(user.baseMembership / 6)) : 2).toLocaleString() 
+                      : pulseStats.branchWeeklySouls.toLocaleString()}
                   </span>
                   <span className="text-[10px] text-emerald-400 uppercase tracking-wider font-semibold mt-0.5">Weekly Souls</span>
                 </div>
               </div>
               <div className="mt-2 text-center">
                 <span className="text-[10px] text-emerald-400 font-mono tracking-tight bg-emerald-500/15 border border-emerald-500/25 px-2.5 py-1 rounded-full whitespace-nowrap">
-                  {user?.role === 'GLOBAL_ADMIN' ? "Weekly Souls Won" : "Weekly Branch Souls"}
+                  {user?.role === 'GLOBAL_ADMIN' ? "Weekly Souls Won" : user?.role === 'CELL_LEADER' ? "Weekly Cell Souls" : "Weekly Branch Souls"}
                 </span>
               </div>
             </div>
@@ -339,14 +701,18 @@ export function Dashboard() {
               <div className="w-32 h-32 md:w-36 md:h-36 rounded-full bg-gradient-to-tr from-rose-600 to-amber-500 shadow-[0_0_50px_rgba(244,63,94,0.6)] flex items-center justify-center relative animate-pulse">
                 <div className="absolute inset-1.5 rounded-full bg-[#0B0118]/80 backdrop-blur-sm flex items-center justify-center flex-col">
                   <span className="text-xl md:text-2xl lg:text-3xl font-bold text-white tracking-tighter">
-                    {user?.role === 'GLOBAL_ADMIN' ? pulseStats.globalMonthlySouls.toLocaleString() : pulseStats.branchMonthlySouls.toLocaleString()}
+                    {user?.role === 'GLOBAL_ADMIN' 
+                      ? pulseStats.globalMonthlySouls.toLocaleString() 
+                      : user?.role === 'CELL_LEADER' 
+                      ? (user?.baseMembership ? Math.max(2, Math.floor(user.baseMembership / 3)) : 5).toLocaleString() 
+                      : pulseStats.branchMonthlySouls.toLocaleString()}
                   </span>
                   <span className="text-[10px] text-rose-400 uppercase tracking-wider font-semibold mt-0.5 animate-pulse">Monthly Souls</span>
                 </div>
               </div>
               <div className="mt-2 text-center">
                 <span className="text-[10px] text-rose-300 font-mono tracking-tight bg-rose-500/15 border border-rose-500/25 px-2.5 py-1 rounded-full whitespace-nowrap">
-                  {user?.role === 'GLOBAL_ADMIN' ? "Monthly Souls Won" : "Monthly Branch Souls"}
+                  {user?.role === 'GLOBAL_ADMIN' ? "Monthly Souls Won" : user?.role === 'CELL_LEADER' ? "Monthly Cell Souls" : "Monthly Branch Souls"}
                 </span>
               </div>
             </div>
@@ -354,7 +720,7 @@ export function Dashboard() {
           </div>
           <div className="absolute top-4 left-6">
             <h2 className="text-xs font-bold text-white/90 bg-white/5 border border-white/10 px-2.5 py-1 rounded-full">
-               {user?.role === 'GLOBAL_ADMIN' ? 'Global Growth Pulse' : `${user?.branchName || "Branch"} Vitality`}
+               {user?.role === 'GLOBAL_ADMIN' ? 'Global Growth Pulse' : user?.role === 'CELL_LEADER' ? 'Home Cell Vitality' : `${user?.branchName || "Branch"} Vitality`}
             </h2>
           </div>
         </div>
@@ -406,6 +772,14 @@ export function Dashboard() {
             <MetricCard title="New Signups" value="8" trend={15} icon={<Sparkles />} />
            </>
         )}
+        {user?.role === 'FOUNDATION_LEADER' && (
+           <>
+            <MetricCard title="Enrollment Intake" value={(user?.baseMembership || 25).toString()} trend={5.5} icon={<Users />} />
+            <MetricCard title="Graduation Candidates" value="12" trend={10} icon={<Sparkles />} />
+            <MetricCard title="Class Attendance" value="96%" trend={2.1} icon={<Activity />} />
+            <MetricCard title="Modules Completed" value="4" trend={0} icon={<Sparkles />} />
+           </>
+        )}
       </section>
 
       {/* Analytics & Insights */}
@@ -432,6 +806,12 @@ export function Dashboard() {
               </>
             ) : (
               <>
+                {user?.role === "BRANCH_ADMIN" && (
+                  <>
+                    <BranchAggregationSummaryWidget />
+                    <BranchDepartmentComplianceHeatmap />
+                  </>
+                )}
                 <SoulsTrendWidget pulseStats={pulseStats} />
                 <AttendanceTrendsWidget />
               </>
@@ -473,7 +853,7 @@ export function Dashboard() {
          </section>
       )}
 
-      {['DEPT_LEADER', 'CELL_LEADER', 'INTEREST_GROUP_LEADER'].includes(user?.role || '') && (
+      {['DEPT_LEADER', 'CELL_LEADER', 'INTEREST_GROUP_LEADER', 'FOUNDATION_LEADER', 'CELL_COORDINATOR'].includes(user?.role || '') && (
          <section className="flex flex-col gap-6">
            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
              <div className="lg:col-span-2 flex flex-col gap-6">
@@ -501,12 +881,25 @@ export function Dashboard() {
                 </GlassCard>
              </div>
            </div>
+
+           {user?.role === 'CELL_COORDINATOR' && (
+             <div className="grid grid-cols-1">
+               <CoordinatorCellManager user={user} />
+             </div>
+           )}
+
+           {['DEPT_LEADER', 'CELL_LEADER', 'INTEREST_GROUP_LEADER', 'FOUNDATION_LEADER', 'CELL_COORDINATOR'].includes(user?.role || '') && (
+             <div className="grid grid-cols-1">
+               <LeaderRosterManager user={user} updateUser={updateUser} />
+             </div>
+           )}
+
            <div className="grid grid-cols-1">
              <div className="flex flex-col gap-4">
-               <h3 className="text-sm font-medium tracking-wide uppercase text-lilac mb-1">Action Engine</h3>
+               <h3 className="text-sm font-medium tracking-wide uppercase text-lilac mb-1 text-left">Action Engine</h3>
                <InsightCard 
                   type="neutral"
-                  content="Don't forget to submit your weekly operational metrics to the Branch Administration before Monday noon."
+                  content="Don't forget to submit your weekly report to the Branch Administration before Monday noon."
                />
              </div>
            </div>

@@ -2,20 +2,72 @@ import { Outlet } from "react-router-dom";
 import { Sidebar } from "./Sidebar";
 import { BottomNav } from "./BottomNav";
 import { NotificationBell } from "@/components/ui/NotificationBell";
-import { ShieldAlert, WifiOff, RefreshCcw } from "lucide-react";
+import { ShieldAlert, WifiOff, RefreshCcw, KeyRound, Eye, EyeOff, Lock, CheckCircle2 } from "lucide-react";
 import { usePresence } from "@/hooks/usePresence";
 import { useAppStore } from "@/store/useAppStore";
 import { useState } from "react";
+import { supabase } from "@/lib/supabase";
 
 export function AppLayout() {
   usePresence();
   const { isOnline, pendingActions, syncPendingActions, theme } = useAppStore();
   const [isSyncing, setIsSyncing] = useState(false);
 
+  // States for password setup
+  const [showPasswordSetup, setShowPasswordSetup] = useState(() => {
+    return localStorage.getItem("prompt_password_reset") === "true";
+  });
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [modalError, setModalError] = useState("");
+  const [modalSuccess, setModalSuccess] = useState("");
+  const [isSavingPassword, setIsSavingPassword] = useState(false);
+
   const handleSync = async () => {
     setIsSyncing(true);
     await syncPendingActions();
     setIsSyncing(false);
+  };
+
+  const handleCreatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setModalError("");
+    setModalSuccess("");
+
+    if (newPassword.length < 6) {
+      setModalError("Permanent password must be at least 6 characters long.");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setModalError("Entered passwords do not match.");
+      return;
+    }
+
+    setIsSavingPassword(true);
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      setModalSuccess("Access credentials set successfully! Welcome aboard.");
+      localStorage.removeItem("prompt_password_reset");
+
+      setTimeout(() => {
+        setShowPasswordSetup(false);
+      }, 2000);
+    } catch (err: any) {
+      console.error("[PasswordSetup] Auth update error:", err);
+      setModalError(err.message || "Failed to establish permanent credentials.");
+    } finally {
+      setIsSavingPassword(false);
+    }
   };
 
   return (
@@ -68,6 +120,102 @@ export function AppLayout() {
          </div>
          <main className="flex-1 p-4 md:p-8 max-w-7xl mx-auto w-full z-10 relative">
            <Outlet />
+
+            {showPasswordSetup && (
+              <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
+                <div className={`w-full max-w-md p-6 rounded-2xl border shadow-2xl relative overflow-hidden backdrop-blur-xl animate-in fade-in zoom-in-95 duration-300 ${
+                  theme === "light" 
+                    ? "bg-white border-slate-200 text-slate-900" 
+                    : "bg-[#110524]/90 border-white/10 text-white"
+                }`}>
+                  <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-royal-purple via-indigo-500 to-emerald-400" />
+                  
+                  <div className="flex flex-col items-center text-center mt-2 mb-6">
+                    <div className="p-3 rounded-full bg-royal-purple/10 border border-royal-purple/20 mb-3 text-royal-purple">
+                      <Lock className="w-6 h-6 animate-pulse" />
+                    </div>
+                    <h2 className="text-xl font-bold tracking-tight text-white font-sans">Create Permanent Password</h2>
+                    <p className="text-xs mt-1 max-w-xs text-indigo-200/80">
+                      Welcome to Pistis Nexus! Since you logged in via a secure single-use link, please establish a permanent password for subsequent sign-ins.
+                    </p>
+                  </div>
+
+                  <form onSubmit={handleCreatePassword} className="space-y-4">
+                    {modalError && (
+                      <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-500 font-medium leading-relaxed">
+                        {modalError}
+                      </div>
+                    )}
+
+                    {modalSuccess && (
+                      <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-400 font-medium flex items-center gap-2 leading-relaxed">
+                        <CheckCircle2 className="w-4 h-4 shrink-0" />
+                        <span>{modalSuccess}</span>
+                      </div>
+                    )}
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] uppercase font-bold tracking-wider text-indigo-300/80">New Secure Password</label>
+                      <div className="relative">
+                        <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                        <input
+                          type={showNewPassword ? "text" : "password"}
+                          required
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          placeholder="Min. 6 characters"
+                          className="w-full rounded-xl py-2.5 pl-10 pr-10 text-sm focus:outline-none focus:ring-1 transition-all border border-white/5 bg-white/5 focus:ring-[#B193FB] focus:border-[#B193FB] text-white"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowNewPassword(!showNewPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white transition-colors"
+                        >
+                          {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] uppercase font-bold tracking-wider text-indigo-300/80">Confirm Password</label>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                        <input
+                          type={showConfirmPassword ? "text" : "password"}
+                          required
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          placeholder="Repeat new password"
+                          className="w-full rounded-xl py-2.5 pl-10 pr-10 text-sm focus:outline-none focus:ring-1 transition-all border border-white/5 bg-white/5 focus:ring-[#B193FB] focus:border-[#B193FB] text-white"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white transition-colors"
+                        >
+                          {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={isSavingPassword || modalSuccess !== ""}
+                      className="w-full mt-2 rounded-xl py-3 bg-gradient-to-r from-royal-purple to-[#818cf8] text-white font-bold text-sm hover:from-royal-purple/95 hover:to-[#818cf8]/95 shadow-lg active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2 font-sans"
+                    >
+                      {isSavingPassword ? (
+                        <>
+                          <span className="w-4 h-4 rounded-full border-2 border-white/20 border-t-white animate-spin" />
+                          <span>Establishing Credentials...</span>
+                        </>
+                      ) : (
+                        "Create Account Password"
+                      )}
+                    </button>
+                  </form>
+                </div>
+              </div>
+            )}
          </main>
       </div>
 

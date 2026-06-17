@@ -12,6 +12,7 @@ import { Reports } from "./pages/Reports";
 import { Login } from "./pages/Login";
 import { Approvals } from "./pages/Approvals";
 import { Settings } from "./pages/Settings";
+import { FoundationSchool } from "./pages/FoundationSchool";
 import { useAppStore, Role } from "./store/useAppStore";
 import { InstallPrompt } from "@/components/ui/InstallPrompt";
 import { ConnectionToast } from "@/components/ui/ConnectionToast";
@@ -32,8 +33,28 @@ const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode,
   return <>{children}</>;
 };
 
+function ScrollToTop() {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "instant" as any });
+  }, [pathname]);
+
+  return null;
+}
+
 export default function App() {
   const setIsOnline = useAppStore(state => state.setIsOnline);
+  const theme = useAppStore(state => state.theme || "dark");
+
+  useEffect(() => {
+    const root = window.document.documentElement;
+    if (theme === "light") {
+      root.classList.add("light");
+    } else {
+      root.classList.remove("light");
+    }
+  }, [theme]);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -51,6 +72,7 @@ export default function App() {
   return (
     <>
       <BrowserRouter>
+        <ScrollToTop />
         <Routes>
           <Route path="/login" element={<Login />} />
           
@@ -63,6 +85,7 @@ export default function App() {
             <Route path="departments" element={<ProtectedRoute allowedRoles={['GLOBAL_ADMIN', 'BRANCH_ADMIN']}><Departments /></ProtectedRoute>} />
             <Route path="homecells" element={<ProtectedRoute allowedRoles={['GLOBAL_ADMIN', 'BRANCH_ADMIN', 'DEPT_LEADER']}><HomeCells /></ProtectedRoute>} />
             <Route path="interest" element={<ProtectedRoute allowedRoles={['GLOBAL_ADMIN', 'BRANCH_ADMIN']}><InterestGroups /></ProtectedRoute>} />
+            <Route path="foundationschool" element={<ProtectedRoute allowedRoles={['GLOBAL_ADMIN', 'BRANCH_ADMIN', 'FOUNDATION_LEADER']}><FoundationSchool /></ProtectedRoute>} />
             <Route path="directory" element={<Directory />} />
             <Route path="reports" element={<Reports />} />
             <Route path="settings" element={<Settings />} />

@@ -339,7 +339,7 @@ export function ActivityStream() {
                             <Eye className="w-3 h-3" /> {activity.branch_name}
                           </span>
                         )}
-                        <span className="ml-auto text-[9px] text-[#B193FB] flex items-center gap-1">
+                        <span className="ml-auto text-[9px] text-[#B193FB] flex items-center gap-1 cursor-help" title={`${new Date(activity.created_at).toLocaleDateString()} at ${new Date(activity.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}>
                           <Clock className="w-3 h-3 text-lilac/50" /> {formatTimeAgo(activity.created_at)}
                         </span>
                       </div>

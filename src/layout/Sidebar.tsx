@@ -1,20 +1,22 @@
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Network, Wallet, Users, Home, FileText, ShieldAlert, LogOut, Compass, Contact, Key, Settings as SettingsIcon } from "lucide-react";
+import { LayoutDashboard, Network, Wallet, Users, Home, FileText, ShieldAlert, LogOut, Compass, Contact, Key, Settings as SettingsIcon, GraduationCap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/store/useAppStore";
 import { useEffect } from "react";
 
 const allItems = [
-  { path: "/", label: "Intelligence Hub", icon: LayoutDashboard, roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN", "DEPT_LEADER", "CELL_LEADER", "INTEREST_GROUP_LEADER"] },
+  { path: "/", label: "Intelligence Hub", icon: LayoutDashboard, roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN", "DEPT_LEADER", "CELL_LEADER", "INTEREST_GROUP_LEADER", "FOUNDATION_LEADER", "CELL_COORDINATOR"] },
   { path: "/branches", label: "Global Branches", icon: Network, roles: ["GLOBAL_ADMIN"] },
   { path: "/approvals", label: "Access Approvals", icon: Key, roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN"] },
   { path: "/finance", label: "Finance", icon: Wallet, roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN"] },
   { path: "/departments", label: "Departments", icon: Users, roles: ["BRANCH_ADMIN"] },
-  { path: "/homecells", label: "Cell Units", icon: Home, roles: ["BRANCH_ADMIN", "CELL_LEADER"] },
+  { path: "/homecells", label: "Cell Units", icon: Home, roles: ["BRANCH_ADMIN", "CELL_LEADER", "CELL_COORDINATOR"] },
   { path: "/interest", label: "Interest Groups", icon: Compass, roles: ["BRANCH_ADMIN", "INTEREST_GROUP_LEADER"] },
-  { path: "/directory", label: "Leaders Directory", icon: Contact, roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN", "DEPT_LEADER", "CELL_LEADER", "INTEREST_GROUP_LEADER"] },
-  { path: "/reports", label: "Reports System", icon: FileText, roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN", "DEPT_LEADER", "CELL_LEADER", "INTEREST_GROUP_LEADER"] },
-  { path: "/settings", label: "Settings", icon: SettingsIcon, roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN", "DEPT_LEADER", "CELL_LEADER", "INTEREST_GROUP_LEADER"] },
+  { path: "/foundationschool", label: "Foundation School", icon: GraduationCap, roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN", "FOUNDATION_LEADER"] },
+  { path: "/foundationschool?filter=current", label: "Foundation Students", icon: Users, roles: ["FOUNDATION_LEADER"] },
+  { path: "/directory", label: "Leaders Directory", icon: Contact, roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN", "DEPT_LEADER", "CELL_LEADER", "INTEREST_GROUP_LEADER", "FOUNDATION_LEADER", "CELL_COORDINATOR"] },
+  { path: "/reports", label: "Reports System", icon: FileText, roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN", "DEPT_LEADER", "CELL_LEADER", "INTEREST_GROUP_LEADER", "FOUNDATION_LEADER", "CELL_COORDINATOR"] },
+  { path: "/settings", label: "Settings", icon: SettingsIcon, roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN", "DEPT_LEADER", "CELL_LEADER", "INTEREST_GROUP_LEADER", "FOUNDATION_LEADER", "CELL_COORDINATOR"] },
 ];
 
 export function Sidebar() {
@@ -59,7 +61,9 @@ export function Sidebar() {
       <nav id="tour-sidebar-nav" className="flex-1 px-4 py-6 flex flex-col gap-2 overflow-y-auto">
         <div className="text-xs font-semibold text-lilac/50 uppercase tracking-wider mb-2 px-4">Modules</div>
         {topItems.map((item) => {
-          const isActive = location.pathname === item.path;
+          const isActive = item.path.includes("?")
+            ? (location.pathname + location.search) === item.path
+            : (location.pathname === item.path && !location.search);
           const Icon = item.icon;
           const isDirectory = item.path === "/directory";
           return (

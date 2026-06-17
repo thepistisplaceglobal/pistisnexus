@@ -6,6 +6,7 @@ import { useAppStore } from "@/store/useAppStore";
 import { motion, AnimatePresence } from "motion/react";
 import { supabase } from "@/lib/supabase";
 import { ActivityService } from "@/services/activityService";
+import { NotificationService } from "@/services/notificationService";
 
 interface WeeklyReportFormModalProps {
   isOpen: boolean;
@@ -26,21 +27,22 @@ export function WeeklyReportFormModal({ isOpen, onClose }: WeeklyReportFormModal
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      const unitName = user.deptName || user.groupName || 'Unknown Unit';
-      const unitType = role === 'DEPT_LEADER' ? 'DEPT' : role === 'CELL_LEADER' ? 'CELL' : 'INTEREST_GROUP';
+      const unitName = user.deptName || user.groupName || 'Foundation School';
+      const unitType = role === 'DEPT_LEADER' ? 'DEPT' : role === 'CELL_LEADER' ? 'CELL' : role === 'FOUNDATION_LEADER' ? 'FOUNDATION' : 'INTEREST_GROUP';
       const branchName = user.branchName || 'Unknown Branch';
 
       await supabase.from('unit_reports').insert([{
         unit_name: unitName,
         unit_type: unitType,
         branch_name: branchName,
+        submitted_by: user.id,
         submitter_name: user.name,
         metrics: {
           meetingHeld,
           ...formData,
           submitted_at: new Date().toISOString()
         },
-        status: 'PENDING_BRANCH'
+        status: role === 'CELL_LEADER' ? 'PENDING_COORDINATOR' : 'PENDING_BRANCH'
       }]);
 
       await ActivityService.logActivity({
@@ -49,8 +51,15 @@ export function WeeklyReportFormModal({ isOpen, onClose }: WeeklyReportFormModal
         user_role: role,
         branch_name: branchName,
         action_type: "REPORT_SUBMITTED",
-        details: `Submitted weekly metrics report for ${unitType === 'CELL' ? 'Cell' : unitType === 'DEPT' ? 'Department' : 'Interest Group'} "${unitName}".`
+        details: `Submitted weekly metrics report for ${unitType === 'CELL' ? 'Cell' : unitType === 'DEPT' ? 'Department' : unitType === 'FOUNDATION' ? 'Foundation School' : 'Interest Group'} "${unitName}".`
       });
+
+      // Trigger satisfying high-fidelity chime sound and offline persistent notification
+      NotificationService.triggerNotification(
+        "✅ Report Successfully Filed",
+        `Weekly report for "${unitName}" has been successfully logged and queued for Branch Admin verification.`,
+        "report"
+      );
     } catch (err) {
       console.error(err);
     }
@@ -237,6 +246,37 @@ export function WeeklyReportFormModal({ isOpen, onClose }: WeeklyReportFormModal
     </>
   );
 
+  const renderFoundationSchoolFields = () => (
+    <>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-white/10 mt-2">
+        <div className="md:col-span-2 font-semibold text-[#B193FB] text-xs uppercase tracking-wider">Foundation School Academic Progress & Cohort Statistics</div>
+        {renderField("Current Cohort Name / Code (e.g., Cohort 2026-B)", "text")}
+        {renderField("Active Enrolled Students", "number")}
+        {renderField("Average Class Attendance Rate (%)", "number")}
+        {renderField("Number of Candidates in Doctrinal Classes Track", "number")}
+        {renderField("Number of Candidates Pending Examinations", "number")}
+        {renderField("Graduated/Inaugurated Candidates this week", "number")}
+        
+        <div className="md:col-span-2 font-semibold text-[#B193FB] text-xs uppercase tracking-wider pt-4 border-t border-white/10">Teaching Modules Covered This Week</div>
+        <div className="md:col-span-2">
+          {renderField("Topics/Modules Covered (e.g. Doctrinal Foundations, Church Vision)", "textarea")}
+        </div>
+        
+        <div className="md:col-span-2 font-semibold text-[#B193FB] text-xs uppercase tracking-wider pt-4 border-t border-white/10">Finance Report</div>
+        {renderField("Opening Balance (₦)", "number")}
+        {renderField("Workbook/Materials Sales Completed (₦)", "number")}
+        <div className="md:col-span-2">
+          {renderField("Course Materials & Manuals expenditure/purchases (₦)", "textarea")}
+        </div>
+
+        <div className="md:col-span-2 font-semibold text-[#B193FB] text-xs uppercase tracking-wider pt-4 border-t border-white/10">Remarks & Special Prayer Requests</div>
+        <div className="md:col-span-2">
+          {renderField("Student feedback, challenges, observations, and prayer request files", "textarea")}
+        </div>
+      </div>
+    </>
+  );
+
   return (
     <AnimatePresence>
       <motion.div
@@ -263,7 +303,7 @@ export function WeeklyReportFormModal({ isOpen, onClose }: WeeklyReportFormModal
                     Date: {new Date().toLocaleDateString()}
                   </span>
                   <span className="font-semibold text-lilac bg-white/5 py-1 px-2 rounded">
-                    {role === "DEPT_LEADER" ? "Department" : role === "CELL_LEADER" ? "Home Cell" : "Interest Group"}: {user.deptName || user.groupName || "N/A"}
+                    {role === "DEPT_LEADER" ? "Department" : role === "CELL_LEADER" ? "Home Cell" : role === "FOUNDATION_LEADER" ? "Foundation School" : "Interest Group"}: {user.deptName || user.groupName || (role === "FOUNDATION_LEADER" ? "Foundation School" : "N/A")}
                   </span>
                   <span className="font-semibold text-lilac bg-white/5 py-1 px-2 rounded">
                     Leader: {user.name}
@@ -279,6 +319,7 @@ export function WeeklyReportFormModal({ isOpen, onClose }: WeeklyReportFormModal
               {role === "DEPT_LEADER" && renderDepartmentFields()}
               {role === "CELL_LEADER" && renderCellFields()}
               {role === "INTEREST_GROUP_LEADER" && renderInterestGroupFields()}
+              {role === "FOUNDATION_LEADER" && renderFoundationSchoolFields()}
             </form>
 
             <div className="p-4 md:p-6 border-t border-white/10 flex justify-end gap-3 shrink-0 bg-black/20">

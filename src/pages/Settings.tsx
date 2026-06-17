@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useAppStore } from "@/store/useAppStore";
+import { useAppStore, Role } from "@/store/useAppStore";
 import { supabase } from "@/lib/supabase";
 import { motion, AnimatePresence } from "motion/react";
 import { 
@@ -19,7 +19,9 @@ import {
   Loader2,
   Database,
   Trash2,
-  AlertTriangle
+  AlertTriangle,
+  Sun,
+  Moon
 } from "lucide-react";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { ActionButton } from "@/components/ui/ActionButton";
@@ -29,7 +31,7 @@ import { AvatarUpload } from "@/components/ui/AvatarUpload";
 type TabType = "profile" | "security" | "info" | "admin";
 
 export function Settings() {
-  const { user, updateUser, logout } = useAppStore();
+  const { user, updateUser, logout, theme, setTheme, setCurrentModule } = useAppStore();
   const [activeTab, setActiveTab] = useState<TabType>("profile");
   
   // Profile state
@@ -37,11 +39,12 @@ export function Settings() {
   const [country, setCountry] = useState("");
   const [email, setEmail] = useState("");
   const [unitName, setUnitName] = useState("");
-  const [avatarUrl, setAvatarUrl] = useState(user?.avatar_url || "");
+  const [avatarUrl, setAvatarUrl] = useState(user?.avatar_url || (user?.id ? localStorage.getItem(`avatar_${user.id}`) || "" : ""));
   const [profileLoading, setProfileLoading] = useState(true);
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSuccess, setProfileSuccess] = useState(false);
   const [profileError, setProfileError] = useState("");
+  const [roleSwitchSuccess, setRoleSwitchSuccess] = useState("");
 
   // Password state
   const [currentPassword, setCurrentPassword] = useState("");
@@ -399,13 +402,38 @@ export function Settings() {
 
   return (
     <div className="w-full max-w-4xl mx-auto px-4 py-6 md:py-8 pb-32">
-      {/* Title */}
-      <div className="mb-6 md:mb-8">
-        <h2 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-          <SettingsIcon className="w-6 h-6 text-royal-purple" />
-          Settings Panel
-        </h2>
-        <p className="text-sm text-lilac/60">Configure your profile identity, security options, and connection state.</p>
+      {/* Title with Theme Toggle */}
+      <div className="mb-6 md:mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+            <SettingsIcon className="w-6 h-6 text-royal-purple" />
+            Settings Panel
+          </h2>
+          <p className="text-sm text-lilac/60">Configure your profile identity, security options, and connection state.</p>
+        </div>
+        
+        {/* Interactive Theme Switch */}
+        <div id="theme-switch-container" className="flex items-center gap-3 bg-black/20 border border-white/10 px-3.5 py-2 rounded-2xl">
+          <span className="text-xs font-semibold uppercase tracking-wider text-lilac">Theme mode:</span>
+          <button
+            type="button"
+            id="theme-switch-btn"
+            onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+            className="flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-xl transition-all duration-300 shadow-md cursor-pointer bg-royal-purple hover:bg-royal-purple/80 text-white"
+          >
+            {theme === "light" ? (
+              <>
+                <Sun className="w-3.5 h-3.5 text-amber-300 fill-amber-300/20" />
+                <span>Day Light</span>
+              </>
+            ) : (
+              <>
+                <Moon className="w-3.5 h-3.5 text-indigo-300 fill-indigo-300/20" />
+                <span>Royal Purple</span>
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Profile Card Summary */}
@@ -416,6 +444,7 @@ export function Settings() {
             fullName={fullName || user?.name || ""} 
             onUploadSuccess={(url) => {
               setAvatarUrl(url);
+              if (user?.id) localStorage.setItem(`avatar_${user.id}`, url);
               updateUser({ avatar_url: url });
               setProfileSuccess(true);
               setTimeout(() => setProfileSuccess(false), 3000);
@@ -485,7 +514,8 @@ export function Settings() {
           transition={{ duration: 0.2 }}
         >
           {activeTab === "profile" && (
-            <GlassCard className="border-white/5 bg-[#120524]/40">
+            <>
+              <GlassCard className="border-white/5 bg-[#120524]/40">
               <form onSubmit={handleUpdateProfile} className="space-y-4">
                 <h4 className="text-sm font-semibold text-white uppercase tracking-wider mb-2">Profile Identity Details</h4>
                 
@@ -590,6 +620,128 @@ export function Settings() {
                 )}
               </form>
             </GlassCard>
+
+            {/* Role Switcher & Multi-Allocation Sub-panel */}
+            <GlassCard className="mt-6 border-white/5 bg-[#120524]/40">
+              <div className="space-y-4 font-sans">
+                <div>
+                  <h4 className="text-sm font-semibold text-white uppercase tracking-wider mb-1">
+                    Role Switcher & Shared Allocations
+                  </h4>
+                  <p className="text-xs text-lilac/50">
+                    Switch your active operating dashboard view or configure multiple group-allocation roles for simulated testing.
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  {/* Active Dashboard Selection */}
+                  <div className="space-y-2">
+                    <label className="text-xs text-lilac font-medium tracking-wide">
+                      Active Dashboard Role
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={user?.role}
+                        onChange={(e) => {
+                          const selectedVal = e.target.value as any;
+                          updateUser({ role: selectedVal });
+                          setCurrentModule("Dashboard");
+                          setRoleSwitchSuccess(`Active session role shifted to: ${selectedVal.replace('_', ' ')}`);
+                          setTimeout(() => setRoleSwitchSuccess(""), 4000);
+                        }}
+                        className="w-full bg-[#080211]/80 border border-emerald-400/30 rounded-xl py-2.5 px-4 text-white text-sm focus:outline-none focus:border-royal-purple appearance-none cursor-pointer"
+                      >
+                        {(((user?.assignedRoles && user.assignedRoles.length > 0) ? user.assignedRoles : [user?.role || "DEPT_LEADER"]) as Role[]).map((r: Role) => (
+                          <option key={r} value={r}>
+                            {r === "GLOBAL_ADMIN" ? "Global Administrator (HQ)" :
+                             r === "BRANCH_ADMIN" ? "Branch Administrator" :
+                             r === "DEPT_LEADER" ? "Department Leader" :
+                             r === "CELL_LEADER" ? "Home Cell Leader" :
+                             r === "CELL_COORDINATOR" ? "Home Cells Coordinator" :
+                             r === "INTEREST_GROUP_LEADER" ? "Interest Group Leader" :
+                             r === "FOUNDATION_LEADER" ? "Foundation Coordinator" : (r as string).replace('_', ' ')}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-lilac">
+                        <ArrowRight className="w-4 h-4 rotate-90" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Assign new simulated roles */}
+                  <div className="space-y-2">
+                    <label className="text-xs text-lilac font-medium tracking-wide">
+                      Eligible Shared Allocations (Test multiple roles)
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+                      {(["GLOBAL_ADMIN", "BRANCH_ADMIN", "DEPT_LEADER", "CELL_LEADER", "CELL_COORDINATOR", "INTEREST_GROUP_LEADER", "FOUNDATION_LEADER"] as Role[]).map((r: Role) => {
+                        const isCurrentlyAssigned = (user?.assignedRoles || [user?.role || "DEPT_LEADER"]).includes(r);
+                        const isActiveRole = user?.role === r;
+                        const roleLabel = r === "GLOBAL_ADMIN" ? "Global Administrator (HQ)" :
+                          r === "BRANCH_ADMIN" ? "Branch Administrator" :
+                          r === "DEPT_LEADER" ? "Department Leader" :
+                          r === "CELL_LEADER" ? "Home Cell Leader" :
+                          r === "CELL_COORDINATOR" ? "Home Cells Coordinator" :
+                          r === "INTEREST_GROUP_LEADER" ? "Interest Group Leader" :
+                          r === "FOUNDATION_LEADER" ? "Foundation Coordinator" : (r as string).replace('_', ' ');
+                        
+                        return (
+                          <div 
+                            key={r}
+                            onClick={() => {
+                              if (isActiveRole) return; // Cannot unassign active role
+                              const currentAssigned = user?.assignedRoles || [user?.role || "DEPT_LEADER"];
+                              const updated = isCurrentlyAssigned
+                                ? currentAssigned.filter(item => item !== r)
+                                : [...currentAssigned, r];
+                              updateUser({ assignedRoles: updated as any });
+                            }}
+                            className={`flex items-start gap-2 p-2.5 rounded-xl border transition-all cursor-pointer ${
+                              isCurrentlyAssigned 
+                                ? "bg-royal-purple/10 border-royal-purple/30 text-white" 
+                                : "bg-black/20 border-white/5 hover:border-white/10 text-lilac/70"
+                            } ${isActiveRole ? "ring-1 ring-emerald-500/50" : ""}`}
+                          >
+                            <div className="mt-0.5">
+                              {isCurrentlyAssigned ? (
+                                <div className={`w-3.5 h-3.5 rounded flex items-center justify-center text-black ${isActiveRole ? 'bg-emerald-400' : 'bg-royal-purple'}`}>
+                                  <Check className="w-2.5 h-2.5 stroke-[3]" />
+                                </div>
+                              ) : (
+                                <div className="w-3.5 h-3.5 rounded border border-white/30" />
+                              )}
+                            </div>
+                            <div className="flex-1">
+                              <span className="text-[11px] font-semibold leading-none block">
+                                {roleLabel}
+                              </span>
+                              {isActiveRole && (
+                                <span className="text-[9px] text-emerald-400 font-bold tracking-wider uppercase mt-1 block">
+                                  Active View
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {roleSwitchSuccess && (
+                    <motion.div 
+                      initial={{ opacity: 0, scale: 0.95 }} 
+                      animate={{ opacity: 1, scale: 1 }} 
+                      className="flex items-center gap-2 text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 p-3 rounded-xl text-xs"
+                    >
+                      <CheckCircle2 className="w-4 h-4 shrink-0" />
+                      <span>{roleSwitchSuccess}</span>
+                    </motion.div>
+                  )}
+                </div>
+              </div>
+            </GlassCard>
+            </>
           )}
 
           {activeTab === "security" && (

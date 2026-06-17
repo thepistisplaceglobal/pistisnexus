@@ -4,6 +4,8 @@ import { supabase } from "@/lib/supabase";
 import { Check, X, Key, ShieldAlert, Users, Search, UserMinus, Building, MapPin, Globe, Trash2 } from "lucide-react";
 import { useAppStore, Profile } from "@/store/useAppStore";
 import { ActivityService } from "@/services/activityService";
+import { EmailService } from "@/services/emailService";
+import { EmailDispatchLogsWidget } from "@/components/ui/EmailDispatchLogsWidget";
 
 export function Approvals() {
   const user = useAppStore((state) => state.user);
@@ -72,6 +74,22 @@ export function Approvals() {
         action_type: newStatus === "APPROVED" ? "PROFILE_APPROVED" : "SYSTEM_EVENT",
         details: `${newStatus === "APPROVED" ? "Approved" : "Rejected"} registration application of "${targetProfile.full_name}" for ${overrideRole || targetProfile.role} in branch "${targetProfile.branch_name || 'N/A'}".`
       });
+
+      // Trigger automatic branded welcome approval email
+      if (newStatus === "APPROVED") {
+        try {
+          const targetRole = overrideRole || targetProfile.role;
+          const branch = targetProfile.branch_name || "Global Command";
+          await EmailService.sendApprovalEmail(
+            targetProfile.email,
+            targetProfile.full_name,
+            targetRole,
+            branch
+          );
+        } catch (mailError) {
+          console.error("Failed to compile or dispatch welcome notification:", mailError);
+        }
+      }
     }
   };
 
@@ -120,6 +138,18 @@ export function Approvals() {
          console.warn("Mocking password update for: ", req.userEmail);
       }
       updatePasswordRequestStatus(req.id, "APPROVED");
+
+      // Trigger password clearance code confirmation email
+      try {
+        const cleanName = req.userEmail.split("@")[0].toUpperCase();
+        await EmailService.sendPasswordResultEmail(
+          req.userEmail,
+          cleanName,
+          req.newPassword || "RESET_COMPLETED_ACCESS_RESTORED"
+        );
+      } catch (mailError) {
+        console.error("Failed to compile/send password clearance notification:", mailError);
+      }
     } catch (e: any) {
       console.error(e);
     }
@@ -355,6 +385,9 @@ export function Approvals() {
           ))}
         </div>
       )}
+
+      {/* Outbound interactive email dispatch & testing log module */}
+      <EmailDispatchLogsWidget />
     </div>
   );
 }

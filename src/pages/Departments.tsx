@@ -1,22 +1,94 @@
 import { MetricCard } from "@/components/ui/MetricCard";
 import { InsightCard } from "@/components/ui/InsightCard";
-import { Filter, Users, Radio, Music, Wrench, HandHeart, Users2, Globe, Heart, Baby, Users as UsersIcon, Shield, Briefcase, FileSearch } from "lucide-react";
+import { Filter, Users, Radio, Music, Wrench, HandHeart, Users2, Globe, Heart, Baby, Users as UsersIcon, Shield, Briefcase, FileSearch, Drama, Sparkles } from "lucide-react";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { ReportingWidget } from "@/components/ui/ReportingWidget";
 
 const officialDepartments = [
-  { name: "Media", icon: Radio, color: "text-blue-400" },
-  { name: "The Living Portals (Choir)", icon: Music, color: "text-pink-400" },
-  { name: "Technical", icon: Wrench, color: "text-amber-400" },
-  { name: "Ushering", icon: HandHeart, color: "text-emerald-400" },
-  { name: "Pastoral Team / Greeters", icon: Users2, color: "text-purple-400" },
-  { name: "Evangelism & Missions", icon: Globe, color: "text-cyan-400" },
-  { name: "Welfare", icon: Heart, color: "text-red-400" },
-  { name: "Children’s Church", icon: Baby, color: "text-orange-400" },
-  { name: "Teens Church", icon: UsersIcon, color: "text-indigo-400" },
-  { name: "Intercessory", icon: Shield, color: "text-stone-400" },
-  { name: "Protocol", icon: Briefcase, color: "text-slate-300" },
-  { name: "Follow-up", icon: FileSearch, color: "text-fuchsia-400" }
+  { 
+    name: "Media", 
+    icon: Radio, 
+    color: "text-blue-400",
+    desc: "Coordinates church live broadcasting, audio-visual production, and online media presence."
+  },
+  { 
+    name: "The Living Portals (Choir)", 
+    icon: Music, 
+    color: "text-pink-400",
+    desc: "Enriches the worship experience and leads the congregation in praise and spiritual song."
+  },
+  { 
+    name: "Technical", 
+    icon: Wrench, 
+    color: "text-amber-400",
+    desc: "Manages power, professional acoustics, sound reinforcement, and lighting for all services."
+  },
+  { 
+    name: "Ushering", 
+    icon: HandHeart, 
+    color: "text-emerald-400",
+    desc: "Maintains orderliness, coordinates seating, and administers collections and welcoming flows."
+  },
+  { 
+    name: "Pastoral Team / Greeters", 
+    icon: Users2, 
+    color: "text-purple-400",
+    desc: "Nurtures relational connection with first-time guests and oversees pastoral care integration."
+  },
+  { 
+    name: "Evangelism & Missions", 
+    icon: Globe, 
+    color: "text-cyan-400",
+    desc: "Drives community soul-winning campaigns, outreach, and local/foreign missionary works."
+  },
+  { 
+    name: "Welfare", 
+    icon: Heart, 
+    color: "text-red-400",
+    desc: "Extends material, financial, and emotional support to church members in times of need."
+  },
+  { 
+    name: "Children’s Church", 
+    icon: Baby, 
+    color: "text-orange-400",
+    desc: "Nurtures our children (ages 1-12) to understand the faith in a secure, fun-filled setting."
+  },
+  { 
+    name: "Teens Church", 
+    icon: UsersIcon, 
+    color: "text-indigo-400",
+    desc: "Inspires and mentors teenagers to build an uncompromised spiritual foundation."
+  },
+  { 
+    name: "Intercessory", 
+    icon: Shield, 
+    color: "text-stone-400",
+    desc: "Anchors the daily, global, and corporate prayer watches and spiritual warfare coverage."
+  },
+  { 
+    name: "Protocol", 
+    icon: Briefcase, 
+    color: "text-slate-300",
+    desc: "Manages special invitations, minister logistics, executive security, and hospitality."
+  },
+  { 
+    name: "Follow-up", 
+    icon: FileSearch, 
+    color: "text-fuchsia-400",
+    desc: "Contacts, coordinates, and transitions new converts and guests into active fellowship."
+  },
+  { 
+    name: "Pistis Art", 
+    icon: Drama, 
+    color: "text-rose-400",
+    desc: "Communicates the timeless message of the gospel through creative drama, theater, and performing arts."
+  },
+  { 
+    name: "Sanctuary Keepers", 
+    icon: Sparkles, 
+    color: "text-[#B193FB]",
+    desc: "Maintains a clean, pristine, hygienic, and spiritually welcoming sanctuary environment always."
+  }
 ];
 
 export function Departments() {
@@ -54,28 +126,30 @@ export function Departments() {
       </section>
 
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <MetricCard title="Total Volunteers" value="845" trend={3.2}  />
-        <MetricCard title="Active Departments" value="12" trend={0}  />
-        <MetricCard title="Avg Check-in Rate" value="92%" trend={1.5}  />
-        <MetricCard title="Training Completed" value="412" trend={12.0}  />
+        <MetricCard title="Total Volunteers" value="980" trend={4.8}  />
+        <MetricCard title="Active Departments" value="14" trend={16.6}  />
+        <MetricCard title="Avg Check-in Rate" value="93.5%" trend={1.5}  />
+        <MetricCard title="Training Completed" value="448" trend={8.7}  />
       </section>
 
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-           <GlassCard className="flex flex-col gap-4 overflow-hidden p-0 max-h-[600px]">
-             <div className="p-6 border-b border-white/5 sticky top-0 bg-[#0B0118]/80 backdrop-blur-md z-10">
+           <GlassCard className="flex flex-col gap-4 overflow-hidden p-0 max-h-[800px]">
+             <div className="p-6 border-b border-white/5 sticky top-0 bg-[#0B0118]/80 backdrop-blur-md z-10 flex justify-between items-center">
                <h3 className="text-sm font-medium tracking-wide uppercase text-lilac">Official Departments Dashboard</h3>
+               <span className="text-xs text-white/50 bg-white/5 px-2.5 py-1 rounded-full border border-white/10 font-mono">14 Active Departments</span>
              </div>
              <div className="overflow-y-auto px-6 pb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
                {officialDepartments.map((dept, index) => {
                  const Icon = dept.icon;
                  return (
-                   <div key={index} className="p-4 rounded-xl bg-white/5 border border-white/10 flex gap-4 items-center transition-all hover:bg-white/10 hover:-translate-y-1">
-                     <div className="p-3 rounded-lg bg-black/20 shrink-0">
+                   <div key={index} className="p-4 rounded-xl bg-white/5 border border-white/10 flex gap-4 transition-all hover:bg-white/10 hover:-translate-y-1">
+                     <div className="p-3 rounded-lg bg-black/20 shrink-0 h-12 w-12 flex items-center justify-center">
                        <Icon className={`w-6 h-6 ${dept.color}`} />
                      </div>
-                     <div>
-                       <h4 className="text-white font-semibold text-sm md:text-base leading-tight">{dept.name}</h4>
+                     <div className="flex-1">
+                       <h4 className="text-white font-semibold text-sm leading-tight mb-1">{dept.name}</h4>
+                       <p className="text-xs text-lilac/70 line-clamp-2 leading-normal">{dept.desc}</p>
                      </div>
                    </div>
                  );
@@ -88,7 +162,11 @@ export function Departments() {
           <h3 className="text-sm font-medium tracking-wide uppercase text-lilac mb-1">Operations Insights</h3>
           <InsightCard 
             type="positive"
-            content="Media and Protocol teams show consistently high punctuality across all major services."
+            content="Media, Protocol, and the newly launched Pistis Art (Theater) teams show consistently high punctuality across major services."
+          />
+          <InsightCard 
+            type="positive"
+            content="Sanctuary Keepers have established a comprehensive cleaning rotation schedule ensuring total pristine state before all major weekly services."
           />
           <InsightCard 
             type="warning"
