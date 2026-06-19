@@ -483,7 +483,9 @@ export function Settings() {
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 justify-center sm:justify-start">
               <h3 className="text-lg font-bold text-white">{fullName || user?.name}</h3>
               <span className="self-center sm:ml-2 px-2.5 py-0.5 rounded-full text-[10px] font-semibold tracking-wider uppercase bg-royal-purple/30 border border-royal-purple/50 text-lilac">
-                {user?.role.replace('_', ' ')}
+                {user?.roles && user.roles.length > 0 
+                  ? user.roles.map(r => r.replace(/_/g, ' ')).join(' & ') 
+                  : (user?.role || "GUEST").replace(/_/g, ' ')}
               </span>
             </div>
             <p className="text-xs text-lilac/50 mt-1 flex items-center justify-center sm:justify-start gap-1">
@@ -842,7 +844,7 @@ export function Settings() {
                 <div className="p-3 bg-amber-500/10 rounded-xl border border-amber-500/20 text-xs text-amber-400/90 leading-relaxed flex gap-2 mb-6">
                   <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0 animate-pulse" />
                   <div>
-                    <span className="font-bold">Administrative Safeguard Action Required:</span> Entries deleted from Supabase tables are permanently destroyed. Since you are logged in as a <strong>{user?.role.replace('_', ' ')}</strong>, you are restricted to {user?.role === 'GLOBAL_ADMIN' ? 'global application datasets' : `your assigned city expression: <strong>${user?.branchName}</strong>`}.
+                    <span className="font-bold">Administrative Safeguard Action Required:</span> Entries deleted from Supabase tables are permanently destroyed. Since you are logged in as a <strong>{user?.roles && user.roles.length > 0 ? user.roles.map(r => r.replace(/_/g, ' ')).join(' & ') : (user?.role || "GUEST").replace(/_/g, ' ')}</strong>, you are restricted to {(user?.roles?.includes('GLOBAL_ADMIN') || user?.role === 'GLOBAL_ADMIN') ? 'global application datasets' : `your assigned city expression: <strong>${user?.branchName}</strong>`}.
                   </div>
                 </div>
 

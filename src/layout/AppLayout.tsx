@@ -12,7 +12,7 @@ import { supabase } from "@/lib/supabase";
 
 export function AppLayout() {
   usePresence();
-  const { isOnline, pendingActions, syncPendingActions, theme } = useAppStore();
+  const { isOnline, pendingActions, syncPendingActions, theme, user, updateUser } = useAppStore();
   const [isSyncing, setIsSyncing] = useState(false);
 
   // States for password setup
@@ -91,6 +91,31 @@ export function AppLayout() {
             </div>
             
             <div className="flex items-center gap-4 ml-auto">
+              {user?.roles && user.roles.length > 1 && (
+                <div className={`md:hidden flex items-center border px-2 py-1 rounded-xl shadow-sm ${
+                  theme === "light"
+                    ? "bg-royal-purple/5 border-royal-purple/10 text-royal-purple"
+                    : "bg-royal-purple/10 border-white/10 text-emerald-400"
+                }`}>
+                  <select
+                    value={user.role}
+                    onChange={(e) => {
+                      const newRole = e.target.value as any;
+                      updateUser({ role: newRole });
+                    }}
+                    className={`text-[10px] font-sans font-extrabold uppercase bg-transparent border-none focus:outline-none cursor-pointer pr-1 ${
+                      theme === "light" ? "text-royal-purple" : "text-emerald-400"
+                    }`}
+                  >
+                    {user.roles.map((r) => (
+                      <option key={r} value={r} className={theme === "light" ? "text-slate-800 bg-white" : "text-slate-200 bg-[#110524]"}>
+                        {r.split('_')[0]} admin
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               {!isOnline && (
                 <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-full">
                   <WifiOff className="w-3.5 h-3.5 text-amber-400" />

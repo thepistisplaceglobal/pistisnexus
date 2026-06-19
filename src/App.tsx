@@ -16,10 +16,18 @@ import { FoundationSchool } from "./pages/FoundationSchool";
 import { useAppStore, Role } from "./store/useAppStore";
 import { InstallPrompt } from "@/components/ui/InstallPrompt";
 import { ConnectionToast } from "@/components/ui/ConnectionToast";
+import { NotificationService } from "@/services/notificationService";
 
 const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode, allowedRoles?: Role[] }) => {
   const user = useAppStore((state) => state.user);
   const location = useLocation();
+
+  useEffect(() => {
+    NotificationService.requestPermission();
+    if (user?.role) {
+      NotificationService.scheduleDeadlineAlerts(user.role);
+    }
+  }, [user?.role]);
 
   if (!user) {
     return <Navigate to="/login" state={{ from: location }} replace />;

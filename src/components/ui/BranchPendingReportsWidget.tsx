@@ -3,6 +3,7 @@ import { GlassCard } from "./GlassCard";
 import { Clock, Send, CheckCircle2 } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import { supabase } from "@/lib/supabase";
+import { NotificationService } from "@/services/notificationService";
 
 interface PendingUnit {
   id: string;
@@ -55,8 +56,13 @@ export function BranchPendingReportsWidget() {
           table: "unit_reports",
           filter: `branch_name=eq.${user.branchName}`,
         },
-        () => {
+        (payload) => {
           fetchSubmitted();
+          if (payload.new) {
+            NotificationService.sendLocalNotification("Report Aggregation Update", {
+              body: `${(payload.new as any).unit_name} has filed a report.`
+            });
+          }
         }
       )
       .subscribe();

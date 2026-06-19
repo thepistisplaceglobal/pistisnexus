@@ -4,6 +4,7 @@ import { useAppStore } from "@/store/useAppStore";
 import { Send, MessageCircle } from "lucide-react";
 import { ActionButton } from "./ActionButton";
 import { supabase } from "@/lib/supabase";
+import { NotificationService } from "@/services/notificationService";
 
 export function BranchMessagingWidget() {
   const { user, branchMessages, fetchBranchMessages, sendBranchMessage, onlineUsers } = useAppStore();
@@ -16,8 +17,13 @@ export function BranchMessagingWidget() {
       
       const channel = supabase
         .channel(`public:branch_messages:${user.branchName}`)
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'branch_messages', filter: `branch_name=eq.${user.branchName}` }, () => {
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'branch_messages', filter: `branch_name=eq.${user.branchName}` }, (payload) => {
            fetchBranchMessages(user.branchName!);
+           if (payload.new && (payload.new as any).sender_name !== user.name) {
+             NotificationService.sendLocalNotification("New Branch Update", { 
+               body: `From: ${(payload.new as any).sender_name || 'Admin'} - ${(payload.new as any).message}` 
+             });
+           }
         })
         .subscribe();
         
@@ -25,7 +31,7 @@ export function BranchMessagingWidget() {
         supabase.removeChannel(channel);
       }
     }
-  }, [fetchBranchMessages, user?.branchName]);
+  }, [fetchBranchMessages, user?.branchName, user?.name]);
 
   const handleSend = async () => {
     if (!content.trim() || !user || !user.branchName) return;

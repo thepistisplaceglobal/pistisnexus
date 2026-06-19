@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { LayoutDashboard, Network, Wallet, Users, Home, FileText, Compass, Contact, Key, LogOut, Settings, GraduationCap } from "lucide-react";
 
 export function Sidebar() {
-  const { user, currentModule, setCurrentModule, logout, theme } = useAppStore();
+  const { user, currentModule, setCurrentModule, logout, theme, updateUser } = useAppStore();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -26,7 +26,14 @@ export function Sidebar() {
     { name: "Settings", id: "Settings", icon: Settings, path: "/settings", roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN", "DEPT_LEADER", "CELL_LEADER", "INTEREST_GROUP_LEADER", "FOUNDATION_SCHOOL", "HOME_CELL_COORD"] },
   ];
 
-  const navItems = user ? allItems.filter(item => item.roles.includes(user.role)) : [];
+  const navItems = user 
+    ? allItems.filter(item => {
+        if (user.roles && user.roles.length > 0) {
+          return item.roles.some(r => user.roles!.includes(r as any));
+        }
+        return item.roles.includes(user.role);
+      }) 
+    : [];
 
   const handleNavClick = (id: string, path: string) => {
     setCurrentModule(id);
@@ -70,7 +77,32 @@ export function Sidebar() {
       <div className="p-4 mt-auto border-t border-white/5">
         <div className={`p-4 rounded-xl mb-4 ${theme === "light" ? "bg-slate-50 border border-slate-100" : "bg-white/5 border border-white/10"}`}>
           <p className={`text-xs font-bold truncate ${theme === "light" ? "text-slate-900" : "text-white"}`}>{user?.name || "User"}</p>
-          <p className={`text-[10px] mt-0.5 uppercase tracking-wider ${theme === "light" ? "text-slate-500" : "text-white/40"}`}>{user?.role || "GUEST"}</p>
+          <p className={`text-[10px] mt-0.5 uppercase tracking-wider ${theme === "light" ? "text-slate-500" : "text-white/40"}`}>
+            Active: {(user?.role || "GUEST").replace(/_/g, ' ')}
+          </p>
+          {user?.roles && user.roles.length > 1 && (
+            <div className="mt-2.5 pt-2 border-t border-white/10">
+              <label className={`text-[9px] uppercase tracking-wider block mb-1 font-bold ${theme === "light" ? "text-slate-400" : "text-lilac/50"}`}>Switch Role</label>
+              <select
+                value={user.role}
+                onChange={(e) => {
+                  const newRole = e.target.value as any;
+                  updateUser({ role: newRole });
+                }}
+                className={`w-full text-[10px] uppercase tracking-widest font-bold py-1 px-2 rounded-lg border focus:outline-none focus:ring-1 focus:ring-royal-purple transition-all cursor-pointer ${
+                  theme === "light"
+                    ? "bg-white border-slate-200 text-slate-700"
+                    : "bg-black/40 border-white/10 text-emerald-400"
+                }`}
+              >
+                {user.roles.map((r) => (
+                  <option key={r} value={r} className={theme === "light" ? "text-slate-800" : "text-slate-200 bg-[#160b2d]"}>
+                    {r.replace(/_/g, ' ')}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
         
         <button

@@ -11,6 +11,7 @@ export interface User {
   email?: string;
   name: string;
   role: Role;
+  roles?: Role[];
   branchName?: string;
   deptName?: string;
   groupName?: string;

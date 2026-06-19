@@ -390,7 +390,7 @@ export function Approvals() {
                     )}
                     <div className="flex items-center gap-2 col-span-2">
                       <Users className="w-4 h-4 text-emerald-400" />
-                      <span>Role: {req.role.replace('_', ' ')}</span>
+                      <span>Role: {req.role.split(',').map(r => r.replace(/_/g, ' ')).join(' & ')}</span>
                     </div>
                   </div>
                 </div>
@@ -454,7 +454,7 @@ export function Approvals() {
                     </select>
                   ) : (
                     <span className="px-3 py-1 rounded bg-black/40 text-[10px] font-bold text-lilac uppercase tracking-widest border border-white/10">
-                      {p.role.replace('_', ' ')}
+                      {p.role.split(',').map(r => r.replace(/_/g, ' ')).join(' & ')}
                     </span>
                   )}
                 </div>
@@ -579,7 +579,7 @@ export function Approvals() {
                           <div className="grid grid-cols-2 gap-y-3 gap-x-4 mb-4 text-sm font-sans">
                             <div className="flex items-center gap-2 text-lavender col-span-2">
                               <Building className="w-4 h-4 text-emerald-400" />
-                              <span>Original Role: {p.role.replace('_', ' ')}</span>
+                              <span>Original Role: {p.role.split(',').map(r => r.replace(/_/g, ' ')).join(' & ')}</span>
                             </div>
                             {p.branch_name && (
                               <div className="flex items-center gap-2 text-lavender">

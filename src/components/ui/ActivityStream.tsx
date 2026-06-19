@@ -3,6 +3,7 @@ import { GlassCard } from "./GlassCard";
 import { useAppStore } from "@/store/useAppStore";
 import { ActivityService, ActivityLog } from "@/services/activityService";
 import { supabase } from "@/lib/supabase";
+import { NotificationService } from "@/services/notificationService";
 import { 
   Activity, 
   FileText, 
@@ -59,6 +60,12 @@ export function ActivityStream() {
             // Check branch permissions before displaying the real-time record
             if (user?.role !== "GLOBAL_ADMIN" && newLog.branch_name && newLog.branch_name !== user?.branchName) {
               return; // Filtered out
+            }
+
+            if (newLog.action_type === "BRANCH_REPORT_SUBMITTED") {
+              NotificationService.sendLocalNotification("Branch Report Collated", {
+                body: newLog.details || "A branch report has been aggregated and submitted."
+              });
             }
 
             setActivities(prev => [newLog, ...prev].slice(0, 40));

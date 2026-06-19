@@ -4,6 +4,7 @@ import { useAppStore } from "@/store/useAppStore";
 import { Send, MessageSquare, Megaphone } from "lucide-react";
 import { ActionButton } from "./ActionButton";
 import { supabase } from "@/lib/supabase";
+import { NotificationService } from "@/services/notificationService";
 
 export function GlobalMessagingWidget() {
   const { user, globalMessages, fetchGlobalMessages, sendGlobalMessage, onlineUsers } = useAppStore();
@@ -16,17 +17,20 @@ export function GlobalMessagingWidget() {
     // Subscribe to new global messages
     const channel = supabase
       .channel('public:global_messages')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'global_messages' }, () => {
-         // Optionally we can append it directly, but refetching is simpler
-         // or we can just call fetchGlobalMessages()
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'global_messages' }, (payload) => {
          fetchGlobalMessages();
+         if (payload.new && (payload.new as any).sender_name !== user?.name) {
+           NotificationService.sendLocalNotification("Global Update", { 
+             body: `From: ${(payload.new as any).sender_name || 'Admin'} - ${(payload.new as any).message}` 
+           });
+         }
       })
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [fetchGlobalMessages]);
+  }, [fetchGlobalMessages, user?.name]);
 
   const handleSend = async () => {
     if (!content.trim() || !user) return;

@@ -14,8 +14,9 @@ export function Login() {
   const [view, setView] = useState<"LOGIN_SELECT" | "REGISTER" | "FORGOT_PASSWORD">("LOGIN_SELECT");
 
   const [step, setStep] = useState(1);
+  const [selectedRoles, setSelectedRoles] = useState<Role[]>([]);
   const [regData, setRegData] = useState({
-    role: "" as Role | "",
+    role: "" as any,
     country: "",
     branchName: "",
     unitName: "",
@@ -125,14 +126,17 @@ export function Login() {
             .single();
 
           if (!profileError && profile) {
+            const pRoles = profile.role ? (profile.role.includes(',') ? profile.role.split(',') : [profile.role]) : [];
+            const primaryR = (pRoles[0] || "GLOBAL_ADMIN") as Role;
             login({
               id: profile.id,
               email: session.user.email,
               name: profile.full_name,
-              role: profile.role as Role,
+              role: primaryR,
+              roles: pRoles as Role[],
               branchName: profile.branch_name,
-              deptName: profile.role === "DEPT_LEADER" ? profile.unit_name : undefined,
-              groupName: profile.role !== "DEPT_LEADER" && profile.role !== "GLOBAL_ADMIN" && profile.role !== "BRANCH_ADMIN" ? profile.unit_name : undefined,
+              deptName: pRoles.includes("DEPT_LEADER") ? profile.unit_name : undefined,
+              groupName: pRoles.filter(r => !["DEPT_LEADER", "GLOBAL_ADMIN", "BRANCH_ADMIN"].includes(r)).length > 0 ? profile.unit_name : undefined,
               avatar_url: localStorage.getItem(`avatar_${profile.id}`) || profile.avatar_url,
             });
             // Show first-time password reset modal on Dashboard to prevent lockouts
@@ -207,14 +211,17 @@ export function Login() {
         .update({ login_key: null })
         .eq("id", profile.id);
 
+      const pRoles = profile.role ? (profile.role.includes(',') ? profile.role.split(',') : [profile.role]) : [];
+      const primaryR = (pRoles[0] || "BRANCH_ADMIN") as Role;
       login({
         id: profile.id,
         email: authData.user.email,
         name: profile.full_name,
-        role: profile.role as Role,
+        role: primaryR,
+        roles: pRoles as Role[],
         branchName: profile.branch_name,
-        deptName: profile.role === "DEPT_LEADER" ? profile.unit_name : undefined,
-        groupName: profile.role !== "DEPT_LEADER" && profile.role !== "GLOBAL_ADMIN" && profile.role !== "BRANCH_ADMIN" ? profile.unit_name : undefined,
+        deptName: pRoles.includes("DEPT_LEADER") ? profile.unit_name : undefined,
+        groupName: pRoles.filter(r => !["DEPT_LEADER", "GLOBAL_ADMIN", "BRANCH_ADMIN"].includes(r)).length > 0 ? profile.unit_name : undefined,
         avatar_url: localStorage.getItem(`avatar_${profile.id}`) || profile.avatar_url,
       });
 
@@ -434,14 +441,17 @@ export function Login() {
         return;
       }
       
+      const pRoles = activeProfile.role ? (activeProfile.role.includes(',') ? activeProfile.role.split(',') : [activeProfile.role]) : [];
+      const primaryR = (pRoles[0] || "BRANCH_ADMIN") as Role;
       login({
         id: activeProfile.id,
         email: activeProfile.email,
         name: activeProfile.full_name,
-        role: activeProfile.role as Role,
+        role: primaryR,
+        roles: pRoles as Role[],
         branchName: activeProfile.branch_name,
-        deptName: activeProfile.role === 'DEPT_LEADER' ? activeProfile.unit_name : undefined,
-        groupName: activeProfile.role !== 'DEPT_LEADER' && activeProfile.role !== 'GLOBAL_ADMIN' && activeProfile.role !== 'BRANCH_ADMIN' ? activeProfile.unit_name : undefined,
+        deptName: pRoles.includes("DEPT_LEADER") ? activeProfile.unit_name : undefined,
+        groupName: pRoles.filter(r => !["DEPT_LEADER", "GLOBAL_ADMIN", "BRANCH_ADMIN"].includes(r)).length > 0 ? activeProfile.unit_name : undefined,
         avatar_url: localStorage.getItem(`avatar_${activeProfile.id}`) || activeProfile.avatar_url,
       });
       
@@ -941,54 +951,79 @@ export function Login() {
                  {step === 1 && (
                    <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
                      <div>
-                       <h3 className={`font-bold text-base ${theme === "light" ? "text-slate-900" : "text-white"}`}>Select Your Ministry Role</h3>
-                       <p className={`text-[11px] mt-0.5 ${theme === "light" ? "text-slate-500" : "text-lilac/60"}`}>Please choose the option that matches your official ministry assignment.</p>
+                       <h3 className={`font-bold text-base ${theme === "light" ? "text-slate-900" : "text-white"}`}>Select Your Ministry Role(s)</h3>
+                       <p className={`text-[11px] mt-0.5 ${theme === "light" ? "text-slate-500" : "text-lilac/60"}`}>Please choose all assignments that apply to your official roles (Multi-Selection is supported).</p>
                      </div>
 
                      <div className="flex flex-col gap-2.5 max-h-[320px] overflow-y-auto pr-1">
                         {[
-                          { key: 'GLOBAL_ADMIN', name: 'Global Administrator', desc: 'Ministry-wide coordination, master settings, leader approvals, and HQ global oversight. (Max 5 Global Admins)' },
-                          { key: 'BRANCH_ADMIN', name: 'City Expression Administrator', desc: 'Coordinate city expression activities, consolidate reports, and update local feeds. (Max 2 per City Expression)' },
+                          { key: 'GLOBAL_ADMIN', name: 'Global Administrator', desc: 'Ministry-wide coordination, master settings, leader approvals, and HQ global oversight.' },
+                          { key: 'BRANCH_ADMIN', name: 'City Expression Administrator', desc: 'Coordinate city expression activities, consolidate reports, and update local feeds.' },
                           { key: 'DEPT_LEADER', name: 'Departmental Leader', desc: 'Coordinate department activities and submit weekly departmental reports.' },
                           { key: 'CELL_LEADER', name: 'Cell Group Leader', desc: 'Coordinate weekly cell meetings and submit home fellowship reports.' },
                           { key: 'INTEREST_GROUP_LEADER', name: 'Interest Group Leader', desc: 'Organize community outreaches and report on group activities.' },
                           { key: 'FOUNDATION_SCHOOL', name: 'Foundation School Coordinator', desc: 'Manage Foundation School pipeline and graduates.' },
                           { key: 'HOME_CELL_COORD', name: 'Home Cell Coordinator', desc: 'Coordinate and oversee Home Cell units and fellowships.' }
-                        ].map((item) => (
+                        ].map((item) => {
+                            const isSelected = selectedRoles.includes(item.key as Role);
+                            return (
                            <label 
                              key={item.key} 
                              className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
-                               regData.role === item.key 
-                                 ? (theme === "light" ? 'bg-royal-purple/5 border-royal-purple/40 shadow-sm' : 'bg-royal-purple/20 border-royal-purple/50 shadow-md shadow-royal-purple/5') 
+                               isSelected                                 ? (theme === "light" ? 'bg-royal-purple/5 border-royal-purple/40 shadow-sm' : 'bg-royal-purple/20 border-royal-purple/50 shadow-md shadow-royal-purple/5') 
                                  : (theme === "light" ? 'bg-slate-50 border-slate-200 hover:bg-slate-100 hover:border-slate-300' : 'bg-black/30 border-white/5 hover:bg-white/5 hover:border-white/10')
                              }`}
                            >
                              <input 
-                               type="radio" 
+                               type="checkbox" 
                                name="role" 
                                value={item.key} 
-                               checked={regData.role === item.key} 
+                               checked={isSelected} 
                                onChange={(e) => {
-                                 const val = e.target.value as Role;
-                                 let uName = regData.unitName;
-                                 if (val === 'FOUNDATION_SCHOOL') {
-                                   uName = 'Foundation School';
-                                 } else if (val === 'HOME_CELL_COORD') {
-                                   uName = 'Home Cell Administration';
-                                 } else if (['GLOBAL_ADMIN', 'BRANCH_ADMIN'].includes(val)) {
-                                   uName = '';
+                                 const val = item.key as Role;
+                                 let nextRoles = [...selectedRoles];
+                                 
+                                 if (val === 'GLOBAL_ADMIN' || val === 'BRANCH_ADMIN') {
+                                   if (nextRoles.includes(val)) {
+                                     nextRoles = nextRoles.filter(r => r !== val);
+                                   } else {
+                                     // Only allow admin roles
+                                     nextRoles = nextRoles.filter(r => r === 'GLOBAL_ADMIN' || r === 'BRANCH_ADMIN');
+                                     nextRoles.push(val);
+                                   }
+                                 } else {
+                                   if (nextRoles.includes(val)) {
+                                     nextRoles = nextRoles.filter(r => r !== val);
+                                   } else {
+                                     // Remove admin roles
+                                     nextRoles = nextRoles.filter(r => r !== 'GLOBAL_ADMIN' && r !== 'BRANCH_ADMIN');
+                                     nextRoles.push(val);
+                                   }
                                  }
-                                 setRegData({...regData, role: val, unitName: uName});
+                                 
+                                 setSelectedRoles(nextRoles);
+                                 
+                                 let uName = regData.unitName;
+                                 const isOp = nextRoles.some(r => r !== 'GLOBAL_ADMIN' && r !== 'BRANCH_ADMIN');
+                                 if (!isOp) {
+                                   uName = '';
+                                 } else if (nextRoles.includes('FOUNDATION_SCHOOL') && nextRoles.length === 1) {
+                                   uName = 'Foundation School';
+                                 } else if (nextRoles.includes('HOME_CELL_COORD') && nextRoles.length === 1) {
+                                   uName = 'Home Cell Administration';
+                                 }
+                                 setRegData({...regData, role: nextRoles.join(','), unitName: uName});
                                }} 
-                               className={`mt-1 text-royal-purple focus:ring-royal-purple/40 bg-transparent cursor-pointer ${theme === "light" ? "border-slate-300" : "border-white/20"}`} 
+                               className={`mt-1 text-royal-purple focus:ring-royal-purple/40 bg-transparent cursor-pointer rounded-md ${theme === "light" ? "border-slate-300" : "border-white/20"}`} 
                              />
                              <div className="flex-1 ml-0.5">
                                <p className={`font-bold text-xs tracking-wide ${theme === "light" ? "text-slate-800" : "text-white/95"}`}>{item.name}</p>
                                <span className={`block text-[10px] leading-relaxed mt-0.5 ${theme === "light" ? "text-slate-500" : "text-lilac/60"}`}>{item.desc}</span>
                              </div>
-                           </label>
-                        ))}
-                     </div>
+                            </label>
+                            );
+                         })}
+                      </div>
                      <div className={`flex justify-between items-center mt-5 pt-3 border-t ${theme === "light" ? "border-slate-100" : "border-white/5"}`}>
                         <button 
                           type="button" 
@@ -1000,7 +1035,7 @@ export function Login() {
                         <button 
                           type="button" 
                           onClick={nextStep} 
-                          disabled={!regData.role} 
+                          disabled={selectedRoles.length === 0} 
                           className="flex items-center gap-1.5 bg-royal-purple hover:bg-royal-purple/95 active:scale-95 text-white p-2.5 px-4 rounded-xl font-bold text-xs disabled:opacity-50 transition-all cursor-pointer font-sans"
                         >
                           Continue <ArrowRight className="w-3.5 h-3.5" />
@@ -1017,7 +1052,7 @@ export function Login() {
                        <p className="text-[11px] text-lilac/60 mt-0.5">Please indicate where you serve in The Pistis Place.</p>
                      </div>
 
-                     {regData.role !== 'GLOBAL_ADMIN' && (
+                     {!(selectedRoles.length === 1 && selectedRoles[0] === 'GLOBAL_ADMIN') && (
                         <>
                           <div className="space-y-1">
                             <label className={`text-[11px] uppercase tracking-wider font-bold ml-1 ${theme === "light" ? "text-slate-500" : "text-lilac/70"}`}>Country</label>
@@ -1057,7 +1092,7 @@ export function Login() {
                         </>
                      )}
 
-                     {regData.role === 'GLOBAL_ADMIN' && (
+                     {selectedRoles.includes('GLOBAL_ADMIN') && (
                        <GlassCard className={`p-4 border text-xs flex gap-2.5 leading-relaxed ${theme === "light" ? "border-amber-200 bg-amber-50 text-amber-800" : "border-amber-505/20 bg-amber-500/5 text-amber-200"}`}>
                          <ShieldCheck className={`w-5 h-5 shrink-0 mt-0.5 ${theme === "light" ? "text-amber-600" : "text-amber-400"}`} />
                          <span>
@@ -1066,7 +1101,7 @@ export function Login() {
                        </GlassCard>
                      )}
 
-                     {regData.role === 'FOUNDATION_SCHOOL' && (
+                     {selectedRoles.includes('FOUNDATION_SCHOOL') && (
                        <GlassCard className={`p-4 border text-xs flex gap-2.5 leading-relaxed ${theme === "light" ? "border-royal-purple/20 bg-royal-purple/5 text-royal-purple" : "border-white/10 bg-white/5 text-lilac"}`}>
                          <GraduationCap className="w-5 h-5 shrink-0 mt-0.5 text-royal-purple" />
                          <span>
@@ -1075,7 +1110,7 @@ export function Login() {
                        </GlassCard>
                      )}
 
-                     {regData.role === 'HOME_CELL_COORD' && (
+                     {selectedRoles.includes('HOME_CELL_COORD') && (
                        <GlassCard className={`p-4 border text-xs flex gap-2.5 leading-relaxed ${theme === "light" ? "border-royal-purple/20 bg-royal-purple/5 text-royal-purple" : "border-white/10 bg-white/5 text-lilac"}`}>
                          <Home className="w-5 h-5 shrink-0 mt-0.5 text-royal-purple" />
                          <span>
@@ -1084,7 +1119,7 @@ export function Login() {
                        </GlassCard>
                      )}
 
-                     {regData.role === 'DEPT_LEADER' && (
+                     {selectedRoles.some(r => r !== 'GLOBAL_ADMIN' && r !== 'BRANCH_ADMIN') && (
                           <div className="space-y-1">
                             <label className={`text-[11px] uppercase tracking-wider font-bold ml-1 ${theme === "light" ? "text-slate-500" : "text-lilac/70"}`}>Your Department</label>
                             <div className="relative">
@@ -1115,7 +1150,7 @@ export function Login() {
                           </div>
                        )}
 
-                       {['CELL_LEADER', 'INTEREST_GROUP_LEADER'].includes(regData.role) && (
+                       {false && (
                          <div className="space-y-1">
                            <label className={`text-[11px] uppercase tracking-wider font-bold ml-1 ${theme === "light" ? "text-slate-500" : "text-lilac/70"}`}>Specific Unit, Cell, or Group Name</label>
                            <div className="relative">
@@ -1142,7 +1177,13 @@ export function Login() {
                         <button 
                           type="button" 
                           onClick={nextStep} 
-                          disabled={regData.role !== 'GLOBAL_ADMIN' && (!regData.country || !regData.branchName || (['DEPT_LEADER', 'CELL_LEADER', 'INTEREST_GROUP_LEADER'].includes(regData.role) && !regData.unitName))}
+                          disabled={
+                            !(selectedRoles.length === 1 && selectedRoles[0] === 'GLOBAL_ADMIN') && (
+                              !regData.country || 
+                              !regData.branchName || 
+                              (selectedRoles.some(r => r !== 'GLOBAL_ADMIN' && r !== 'BRANCH_ADMIN') && !regData.unitName)
+                            )
+                          }
                           className="flex items-center gap-1.5 bg-royal-purple hover:bg-royal-purple/95 active:scale-95 text-white p-2.5 px-4 rounded-xl font-bold text-xs disabled:opacity-50 transition-all cursor-pointer font-sans"
                         >
                           Continue <ArrowRight className="w-3.5 h-3.5" />
@@ -1246,10 +1287,10 @@ export function Login() {
                   </div>
                   <h3 className="text-white font-bold text-lg mb-1.5">Request Received Successfully</h3>
                   <p className="text-xs text-lilac/80 mb-6 leading-relaxed max-w-sm">
-                    Your request to register as <strong className="text-emerald-400">{regData.role?.replace('_', ' ')?.replace('_', ' ')}</strong> 
+                    Your request to register as <strong className="text-emerald-400">{regData.role?.split(',').map(r => r.replace(/_/g, ' ')).join(' & ')}</strong> 
                     {regData.branchName && ` for the ${regData.branchName} campus`} has been safe-logged.
                     <br/><br/>
-                    {regData.role === 'GLOBAL_ADMIN' || regData.role === 'BRANCH_ADMIN' 
+                    {selectedRoles.includes('GLOBAL_ADMIN') || selectedRoles.includes('BRANCH_ADMIN') 
                       ? "HQ leadership will examine and activate your profile shortly." 
                       : `The local administration team for ${regData.branchName} will confirm and activate your leadership account.`}
                     <br/><br/>
