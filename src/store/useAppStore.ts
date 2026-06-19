@@ -4,14 +4,13 @@ import { get, set as idbSet, del } from "idb-keyval";
 import { supabase } from "@/lib/supabase";
 import { ActivityService } from "@/services/activityService";
 
-export type Role = "GLOBAL_ADMIN" | "BRANCH_ADMIN" | "DEPT_LEADER" | "CELL_LEADER" | "INTEREST_GROUP_LEADER" | "FOUNDATION_LEADER" | "CELL_COORDINATOR";
+export type Role = "GLOBAL_ADMIN" | "BRANCH_ADMIN" | "DEPT_LEADER" | "CELL_LEADER" | "INTEREST_GROUP_LEADER" | "FOUNDATION_SCHOOL" | "HOME_CELL_COORD";
 
 export interface User {
   id: string;
   email?: string;
   name: string;
   role: Role;
-  assignedRoles?: Role[];
   branchName?: string;
   deptName?: string;
   groupName?: string;
@@ -33,6 +32,8 @@ export interface LeaderContact {
   email: string;
   phone: string;
   active: boolean;
+  deleted_at?: string;
+  deleted_by?: string;
 }
 
 export interface GlobalMessage {
@@ -71,7 +72,6 @@ export interface Profile {
   email: string;
   full_name: string;
   role: string;
-  assigned_roles?: string[];
   country: string;
   branch_name: string;
   unit_name: string;
@@ -79,6 +79,8 @@ export interface Profile {
   login_key?: string;
   status: string;
   created_at: string;
+  deleted_at?: string;
+  deleted_by?: string;
 }
 
 export interface PendingAction {
@@ -114,6 +116,7 @@ interface AppState {
   addLeader: (leader: LeaderContact) => Promise<void>;
   updateLeader: (id: string, leader: Partial<LeaderContact>) => Promise<void>;
   deleteLeader: (id: string) => Promise<void>;
+  restoreLeader: (id: string) => Promise<void>;
   globalMessages: GlobalMessage[];
   fetchGlobalMessages: () => Promise<void>;
   sendGlobalMessage: (message: Omit<GlobalMessage, 'id' | 'created_at'>) => Promise<void>;
@@ -255,19 +258,88 @@ export const useAppStore = create<AppState>()(
         }
 
         const { isOnline, addPendingAction } = get();
+        const deleted_at = new Date().toISOString();
+        const deleted_by = currentUser.name;
+
         if (!isOnline) {
-           addPendingAction({ type: 'DELETE_LEADER', payload: { id } });
+           addPendingAction({ type: 'DELETE_LEADER', payload: { id, deleted_at, deleted_by } });
            set((state) => ({
-             leaders: state.leaders.filter((l) => l.id !== id)
+             leaders: state.leaders.map((l) => l.id === id ? { ...l, active: false, deleted_at, deleted_by } : l)
            }));
            return;
         }
         try {
-          const { error } = await supabase.from('leaders').delete().eq('id', id);
-          if (error) console.error("Error deleting leader:", error);
+          // Attempt soft delete: mark active=false, deleted_at, deleted_by
+          const { error } = await supabase.from('leaders').update({
+            active: false,
+            deleted_at,
+            deleted_by
+          } as any).eq('id', id);
+
+          if (error) {
+            console.warn("Soft delete columns might not exist on Remote DB yet, falling back to active: false.", error.message);
+            await supabase.from('leaders').update({ active: false }).eq('id', id);
+          }
+
           set((state) => ({
-            leaders: state.leaders.filter((l) => l.id !== id)
+            leaders: state.leaders.map((l) => l.id === id ? { ...l, active: false, deleted_at, deleted_by } : l)
           }));
+
+          // Log in activity logs
+          await ActivityService.logActivity({
+            user_id: currentUser.id,
+            user_name: currentUser.name,
+            user_role: currentUser.role,
+            branch_name: currentUser.branchName,
+            action_type: "LEADER_DELETED",
+            details: `Deleted leader "${leader?.name}" from group "${leader?.group_name}" (moved to Trash Bin for 30 days).`
+          });
+        } catch (err) {
+          console.error(err);
+        }
+      },
+      restoreLeader: async (id) => {
+        const currentUser = get().user;
+        if (!currentUser || (currentUser.role !== "GLOBAL_ADMIN" && currentUser.role !== "BRANCH_ADMIN")) {
+          throw new Error("Unauthorized: Only branch or global administrators can restore leaders.");
+        }
+
+        const leader = get().leaders.find(l => l.id === id);
+        if (leader && currentUser.role === "BRANCH_ADMIN" && leader.branch !== currentUser.branchName) {
+          throw new Error("Unauthorized: You can only restore leaders within your assigned branch.");
+        }
+
+        const { isOnline } = get();
+        if (!isOnline) {
+           set((state) => ({
+             leaders: state.leaders.map((l) => l.id === id ? { ...l, active: true, deleted_at: undefined, deleted_by: undefined } : l)
+           }));
+           return;
+        }
+        try {
+          const { error } = await supabase.from('leaders').update({
+            active: true,
+            deleted_at: null,
+            deleted_by: null
+          } as any).eq('id', id);
+
+          if (error) {
+            await supabase.from('leaders').update({ active: true }).eq('id', id);
+          }
+
+          set((state) => ({
+            leaders: state.leaders.map((l) => l.id === id ? { ...l, active: true, deleted_at: undefined, deleted_by: undefined } : l)
+          }));
+
+          // Log in activity logs
+          await ActivityService.logActivity({
+            user_id: currentUser.id,
+            user_name: currentUser.name,
+            user_role: currentUser.role,
+            branch_name: currentUser.branchName,
+            action_type: "LEADER_RESTORED",
+            details: `Restored leader "${leader?.name}" back to group "${leader?.group_name}".`
+          });
         } catch (err) {
           console.error(err);
         }

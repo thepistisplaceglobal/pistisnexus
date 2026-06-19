@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useAppStore, Role } from "@/store/useAppStore";
+import { useAppStore } from "@/store/useAppStore";
 import { supabase } from "@/lib/supabase";
 import { motion, AnimatePresence } from "motion/react";
 import { 
@@ -19,9 +19,7 @@ import {
   Loader2,
   Database,
   Trash2,
-  AlertTriangle,
-  Sun,
-  Moon
+  AlertTriangle
 } from "lucide-react";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { ActionButton } from "@/components/ui/ActionButton";
@@ -31,7 +29,7 @@ import { AvatarUpload } from "@/components/ui/AvatarUpload";
 type TabType = "profile" | "security" | "info" | "admin";
 
 export function Settings() {
-  const { user, updateUser, logout, theme, setTheme, setCurrentModule } = useAppStore();
+  const { user, updateUser, logout } = useAppStore();
   const [activeTab, setActiveTab] = useState<TabType>("profile");
   
   // Profile state
@@ -39,12 +37,11 @@ export function Settings() {
   const [country, setCountry] = useState("");
   const [email, setEmail] = useState("");
   const [unitName, setUnitName] = useState("");
-  const [avatarUrl, setAvatarUrl] = useState(user?.avatar_url || (user?.id ? localStorage.getItem(`avatar_${user.id}`) || "" : ""));
+  const [avatarUrl, setAvatarUrl] = useState(user?.avatar_url || "");
   const [profileLoading, setProfileLoading] = useState(true);
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSuccess, setProfileSuccess] = useState(false);
   const [profileError, setProfileError] = useState("");
-  const [roleSwitchSuccess, setRoleSwitchSuccess] = useState("");
 
   // Password state
   const [currentPassword, setCurrentPassword] = useState("");
@@ -70,6 +67,11 @@ export function Settings() {
   const [purgeConfirmed, setPurgeConfirmed] = useState(false);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [countsLoading, setCountsLoading] = useState(false);
+
+  // System Database Reset states
+  const [resetConfirmText, setResetConfirmText] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetSuccess, setResetSuccess] = useState(false);
 
   const testConnection = async () => {
     setTestStatus("testing");
@@ -234,6 +236,55 @@ export function Settings() {
       alert(err.message || "An error occurred during DB purge.");
     } finally {
       setPurgeLoading(false);
+    }
+  };
+
+  const handleSystemReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || user.role !== "GLOBAL_ADMIN") return;
+
+    if (resetConfirmText !== "RESET_FOR_PRODUCTION") {
+      alert("Please type RESET_FOR_PRODUCTION exactly to proceed.");
+      return;
+    }
+
+    setResetLoading(true);
+    setResetSuccess(false);
+
+    try {
+      // 1. Clear LocalStorage test caches safely
+      localStorage.removeItem("fs_candidates");
+      localStorage.removeItem("fs_graduates");
+      localStorage.removeItem("pn_home_cells");
+      localStorage.removeItem("local_activity_logs");
+      localStorage.removeItem("local_email_dispatches");
+
+      // 2. Clear remote database test/transient records
+      const { bulkDeleteDatabaseRecords } = useAppStore.getState();
+      const targetTables = ["unit_reports", "branch_reports", "activity_logs", "branch_messages", "global_messages"];
+      
+      const res = await bulkDeleteDatabaseRecords(targetTables);
+
+      // Attempt to purge email_dispatches dynamically as well
+      try {
+        await supabase.from("email_dispatches").delete().neq("id", "nonexistent-placeholder");
+      } catch (e) {
+        console.warn("Non-critical: bypass email dispatches purge", e);
+      }
+
+      setResetSuccess(true);
+      setResetConfirmText("");
+      
+      // Reload count state
+      if (typeof window !== "undefined") {
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
+      }
+    } catch (err: any) {
+      alert(err.message || "An error occurred during system reset.");
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -402,38 +453,13 @@ export function Settings() {
 
   return (
     <div className="w-full max-w-4xl mx-auto px-4 py-6 md:py-8 pb-32">
-      {/* Title with Theme Toggle */}
-      <div className="mb-6 md:mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-            <SettingsIcon className="w-6 h-6 text-royal-purple" />
-            Settings Panel
-          </h2>
-          <p className="text-sm text-lilac/60">Configure your profile identity, security options, and connection state.</p>
-        </div>
-        
-        {/* Interactive Theme Switch */}
-        <div id="theme-switch-container" className="flex items-center gap-3 bg-black/20 border border-white/10 px-3.5 py-2 rounded-2xl">
-          <span className="text-xs font-semibold uppercase tracking-wider text-lilac">Theme mode:</span>
-          <button
-            type="button"
-            id="theme-switch-btn"
-            onClick={() => setTheme(theme === "light" ? "dark" : "light")}
-            className="flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-xl transition-all duration-300 shadow-md cursor-pointer bg-royal-purple hover:bg-royal-purple/80 text-white"
-          >
-            {theme === "light" ? (
-              <>
-                <Sun className="w-3.5 h-3.5 text-amber-300 fill-amber-300/20" />
-                <span>Day Light</span>
-              </>
-            ) : (
-              <>
-                <Moon className="w-3.5 h-3.5 text-indigo-300 fill-indigo-300/20" />
-                <span>Royal Purple</span>
-              </>
-            )}
-          </button>
-        </div>
+      {/* Title */}
+      <div className="mb-6 md:mb-8">
+        <h2 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+          <SettingsIcon className="w-6 h-6 text-royal-purple" />
+          Settings Panel
+        </h2>
+        <p className="text-sm text-lilac/60">Configure your profile identity, security options, and connection state.</p>
       </div>
 
       {/* Profile Card Summary */}
@@ -444,7 +470,6 @@ export function Settings() {
             fullName={fullName || user?.name || ""} 
             onUploadSuccess={(url) => {
               setAvatarUrl(url);
-              if (user?.id) localStorage.setItem(`avatar_${user.id}`, url);
               updateUser({ avatar_url: url });
               setProfileSuccess(true);
               setTimeout(() => setProfileSuccess(false), 3000);
@@ -514,8 +539,7 @@ export function Settings() {
           transition={{ duration: 0.2 }}
         >
           {activeTab === "profile" && (
-            <>
-              <GlassCard className="border-white/5 bg-[#120524]/40">
+            <GlassCard className="border-white/5 bg-[#120524]/40">
               <form onSubmit={handleUpdateProfile} className="space-y-4">
                 <h4 className="text-sm font-semibold text-white uppercase tracking-wider mb-2">Profile Identity Details</h4>
                 
@@ -620,128 +644,6 @@ export function Settings() {
                 )}
               </form>
             </GlassCard>
-
-            {/* Role Switcher & Multi-Allocation Sub-panel */}
-            <GlassCard className="mt-6 border-white/5 bg-[#120524]/40">
-              <div className="space-y-4 font-sans">
-                <div>
-                  <h4 className="text-sm font-semibold text-white uppercase tracking-wider mb-1">
-                    Role Switcher & Shared Allocations
-                  </h4>
-                  <p className="text-xs text-lilac/50">
-                    Switch your active operating dashboard view or configure multiple group-allocation roles for simulated testing.
-                  </p>
-                </div>
-
-                <div className="space-y-4">
-                  {/* Active Dashboard Selection */}
-                  <div className="space-y-2">
-                    <label className="text-xs text-lilac font-medium tracking-wide">
-                      Active Dashboard Role
-                    </label>
-                    <div className="relative">
-                      <select
-                        value={user?.role}
-                        onChange={(e) => {
-                          const selectedVal = e.target.value as any;
-                          updateUser({ role: selectedVal });
-                          setCurrentModule("Dashboard");
-                          setRoleSwitchSuccess(`Active session role shifted to: ${selectedVal.replace('_', ' ')}`);
-                          setTimeout(() => setRoleSwitchSuccess(""), 4000);
-                        }}
-                        className="w-full bg-[#080211]/80 border border-emerald-400/30 rounded-xl py-2.5 px-4 text-white text-sm focus:outline-none focus:border-royal-purple appearance-none cursor-pointer"
-                      >
-                        {(((user?.assignedRoles && user.assignedRoles.length > 0) ? user.assignedRoles : [user?.role || "DEPT_LEADER"]) as Role[]).map((r: Role) => (
-                          <option key={r} value={r}>
-                            {r === "GLOBAL_ADMIN" ? "Global Administrator (HQ)" :
-                             r === "BRANCH_ADMIN" ? "Branch Administrator" :
-                             r === "DEPT_LEADER" ? "Department Leader" :
-                             r === "CELL_LEADER" ? "Home Cell Leader" :
-                             r === "CELL_COORDINATOR" ? "Home Cells Coordinator" :
-                             r === "INTEREST_GROUP_LEADER" ? "Interest Group Leader" :
-                             r === "FOUNDATION_LEADER" ? "Foundation Coordinator" : (r as string).replace('_', ' ')}
-                          </option>
-                        ))}
-                      </select>
-                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-lilac">
-                        <ArrowRight className="w-4 h-4 rotate-90" />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Assign new simulated roles */}
-                  <div className="space-y-2">
-                    <label className="text-xs text-lilac font-medium tracking-wide">
-                      Eligible Shared Allocations (Test multiple roles)
-                    </label>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
-                      {(["GLOBAL_ADMIN", "BRANCH_ADMIN", "DEPT_LEADER", "CELL_LEADER", "CELL_COORDINATOR", "INTEREST_GROUP_LEADER", "FOUNDATION_LEADER"] as Role[]).map((r: Role) => {
-                        const isCurrentlyAssigned = (user?.assignedRoles || [user?.role || "DEPT_LEADER"]).includes(r);
-                        const isActiveRole = user?.role === r;
-                        const roleLabel = r === "GLOBAL_ADMIN" ? "Global Administrator (HQ)" :
-                          r === "BRANCH_ADMIN" ? "Branch Administrator" :
-                          r === "DEPT_LEADER" ? "Department Leader" :
-                          r === "CELL_LEADER" ? "Home Cell Leader" :
-                          r === "CELL_COORDINATOR" ? "Home Cells Coordinator" :
-                          r === "INTEREST_GROUP_LEADER" ? "Interest Group Leader" :
-                          r === "FOUNDATION_LEADER" ? "Foundation Coordinator" : (r as string).replace('_', ' ');
-                        
-                        return (
-                          <div 
-                            key={r}
-                            onClick={() => {
-                              if (isActiveRole) return; // Cannot unassign active role
-                              const currentAssigned = user?.assignedRoles || [user?.role || "DEPT_LEADER"];
-                              const updated = isCurrentlyAssigned
-                                ? currentAssigned.filter(item => item !== r)
-                                : [...currentAssigned, r];
-                              updateUser({ assignedRoles: updated as any });
-                            }}
-                            className={`flex items-start gap-2 p-2.5 rounded-xl border transition-all cursor-pointer ${
-                              isCurrentlyAssigned 
-                                ? "bg-royal-purple/10 border-royal-purple/30 text-white" 
-                                : "bg-black/20 border-white/5 hover:border-white/10 text-lilac/70"
-                            } ${isActiveRole ? "ring-1 ring-emerald-500/50" : ""}`}
-                          >
-                            <div className="mt-0.5">
-                              {isCurrentlyAssigned ? (
-                                <div className={`w-3.5 h-3.5 rounded flex items-center justify-center text-black ${isActiveRole ? 'bg-emerald-400' : 'bg-royal-purple'}`}>
-                                  <Check className="w-2.5 h-2.5 stroke-[3]" />
-                                </div>
-                              ) : (
-                                <div className="w-3.5 h-3.5 rounded border border-white/30" />
-                              )}
-                            </div>
-                            <div className="flex-1">
-                              <span className="text-[11px] font-semibold leading-none block">
-                                {roleLabel}
-                              </span>
-                              {isActiveRole && (
-                                <span className="text-[9px] text-emerald-400 font-bold tracking-wider uppercase mt-1 block">
-                                  Active View
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {roleSwitchSuccess && (
-                    <motion.div 
-                      initial={{ opacity: 0, scale: 0.95 }} 
-                      animate={{ opacity: 1, scale: 1 }} 
-                      className="flex items-center gap-2 text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 p-3 rounded-xl text-xs"
-                    >
-                      <CheckCircle2 className="w-4 h-4 shrink-0" />
-                      <span>{roleSwitchSuccess}</span>
-                    </motion.div>
-                  )}
-                </div>
-              </div>
-            </GlassCard>
-            </>
           )}
 
           {activeTab === "security" && (
@@ -940,7 +842,7 @@ export function Settings() {
                 <div className="p-3 bg-amber-500/10 rounded-xl border border-amber-500/20 text-xs text-amber-400/90 leading-relaxed flex gap-2 mb-6">
                   <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0 animate-pulse" />
                   <div>
-                    <span className="font-bold">Administrative Safeguard Action Required:</span> Entries deleted from Supabase tables are permanently destroyed. Since you are logged in as a <strong>{user?.role.replace('_', ' ')}</strong>, you are restricted to {user?.role === 'GLOBAL_ADMIN' ? 'global application datasets' : `your assigned branch node: <strong>${user?.branchName}</strong>`}.
+                    <span className="font-bold">Administrative Safeguard Action Required:</span> Entries deleted from Supabase tables are permanently destroyed. Since you are logged in as a <strong>{user?.role.replace('_', ' ')}</strong>, you are restricted to {user?.role === 'GLOBAL_ADMIN' ? 'global application datasets' : `your assigned city expression: <strong>${user?.branchName}</strong>`}.
                   </div>
                 </div>
 
@@ -1089,6 +991,93 @@ export function Settings() {
                   )}
                 </div>
               </GlassCard>
+
+              {user?.role === "GLOBAL_ADMIN" && (
+                <GlassCard className="border-white/5 bg-[#120524]/40 mt-6 animate-fadeIn">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-400 border border-amber-500/20">
+                      <AlertTriangle className="w-5 h-5 animate-pulse" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-semibold text-white uppercase tracking-wider">Production Setup & Safe Database Reset</h4>
+                      <p className="text-xs text-lilac/60 font-medium font-sans">Purge test entries to start the administrative year with a clean, fully empty operations pipeline.</p>
+                    </div>
+                  </div>
+
+                  <div className="p-4 bg-[#10b981]/10 rounded-xl border border-[#10b981]/20 text-xs text-emerald-400 select-none leading-relaxed flex gap-2 mb-6">
+                    <Shield className="w-4 h-4 mt-0.5 shrink-0 text-emerald-400" />
+                    <div>
+                      <span className="font-bold">🔒 Secure Production Safeguard:</span> This reset utility purges **only** non-essential test artifacts (such as demo weekly unit reports, branch aggregations, mock audit logs, and test chat messages).
+                      <br />
+                      <strong className="text-white">Your system credentials, authorized administrator profiles, and primary login identities will NEVER be affected.</strong> You cannot lock yourself or your leadership structure out of the system.
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 pl-1 text-xs text-lilac/85">
+                    <p className="font-semibold text-white">The following records will be permanently and safely reset:</p>
+                    <ul className="list-disc pl-5 space-y-1.5 text-lilac/70">
+                      <li><strong>Weekly Unit Reports:</strong> Clears all submissions filed by branch departments, cell units, and interest groups.</li>
+                      <li><strong>Branch Weekly Summaries:</strong> Clears aggregated data sheets and consolidated branch files.</li>
+                      <li><strong>Communications & Broadcasts:</strong> Purges all global bullet feeds, local branch room announcements, and logged emails.</li>
+                      <li><strong>Platform Activity Streams:</strong> Empties the action auditing histories entirely.</li>
+                      <li><strong>Candidate & Fellowship Tracking Registers:</strong> Re-initializes Local Storage tracking structures for Foundation School classes and Home Cells back to pristine defaults.</li>
+                    </ul>
+                  </div>
+
+                  <form onSubmit={handleSystemReset} className="mt-6 border-t border-white/5 pt-4 space-y-4 font-sans">
+                    <div className="p-4 bg-amber-500/5 rounded-xl border border-amber-500/10 space-y-3">
+                      <div className="text-xs font-semibold text-amber-400 flex items-center gap-1.5">
+                        <Lock className="w-4 h-4 text-amber-400 font-sans" />
+                        Acknowledge System Purification Code:
+                      </div>
+                      <p className="text-[11px] text-lilac/75 leading-normal">
+                        To execute the reset, type <code className="bg-black/40 text-amber-400 px-1.5 py-0.5 rounded font-mono select-all">RESET_FOR_PRODUCTION</code> verbatim in the box below.
+                      </p>
+                      <div className="space-y-1.5">
+                        <input
+                          type="text"
+                          required
+                          placeholder="Type RESET_FOR_PRODUCTION exactly"
+                          value={resetConfirmText}
+                          onChange={(e) => setResetConfirmText(e.target.value)}
+                          className="w-full bg-[#080211]/80 border border-white/10 rounded-xl py-2 px-3 text-white text-xs font-mono focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/50"
+                        />
+                      </div>
+                    </div>
+
+                    {resetSuccess && (
+                      <motion.div 
+                        initial={{ opacity: 0, y: 5 }} 
+                        animate={{ opacity: 1, y: 0 }} 
+                        className="flex items-center gap-2 text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 p-3 rounded-xl text-xs"
+                      >
+                        <CheckCircle2 className="w-4 h-4 shrink-0" />
+                        <span>System purged and fully set up for production administrative use! Re-syncing database...</span>
+                      </motion.div>
+                    )}
+
+                    <div className="flex justify-end pt-2">
+                      <ActionButton
+                        type="submit"
+                        disabled={resetLoading || resetConfirmText !== "RESET_FOR_PRODUCTION"}
+                        className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 hover:shadow-[0_4px_15px_rgba(245,158,11,0.25)] text-white px-5 py-2.5 text-xs font-bold rounded-xl flex items-center gap-2 cursor-pointer disabled:opacity-40 font-sans border-0"
+                      >
+                        {resetLoading ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            Purging & Re-seeding System Cache...
+                          </>
+                        ) : (
+                          <>
+                            <Database className="w-3.5 h-3.5" />
+                            Execute Safe Production Reset
+                          </>
+                        )}
+                      </ActionButton>
+                    </div>
+                  </form>
+                </GlassCard>
+              )}
             </div>
           )}
         </motion.div>

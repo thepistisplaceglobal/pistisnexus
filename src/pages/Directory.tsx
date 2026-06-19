@@ -1,6 +1,6 @@
 import { useState, useEffect, FormEvent } from "react";
 import { GlassCard } from "@/components/ui/GlassCard";
-import { Search, Mail, MessageSquare, Phone, Compass, UserCircle2, Plus, X } from "lucide-react";
+import { Search, Mail, MessageSquare, Phone, Compass, UserCircle2, Plus, X, Trash2 } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 
 export function Directory() {
@@ -22,14 +22,20 @@ export function Directory() {
   const leaders = useAppStore(state => state.leaders);
   const addLeader = useAppStore(state => state.addLeader);
   const fetchLeaders = useAppStore(state => state.fetchLeaders);
+  const deleteLeader = useAppStore(state => state.deleteLeader);
   
   useEffect(() => {
     fetchLeaders();
   }, [fetchLeaders]);
 
+  const activeLeaders = leaders.filter(leader => leader.active !== false && !leader.deleted_at);
+
   const allowedLeaders = user?.role === "GLOBAL_ADMIN" 
-    ? leaders 
-    : leaders.filter(leader => user?.branchName && leader.branch.toLowerCase().includes(user.branchName.toLowerCase()));
+    ? activeLeaders.filter(leader => {
+        const role = leader.role.toLowerCase();
+        return role.includes("branch admin") || role === "branch_admin" || role.includes("pastor");
+      }) 
+    : activeLeaders.filter(leader => user?.branchName && leader.branch.toLowerCase().includes(user.branchName.toLowerCase()));
 
   const filteredLeaders = allowedLeaders.filter(leader =>
     leader.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -56,9 +62,9 @@ export function Directory() {
       <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div className="flex-1">
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white mb-1">
-            Interest Group Directory
+            Leaders Directory
           </h1>
-          <p className="text-lilac/80 font-medium">Connect with Group Leaders across branches</p>
+          <p className="text-lilac/80 font-medium">Connect with {user?.role === "GLOBAL_ADMIN" ? "Branch Admins and Pastors" : "Leaders"} across the system</p>
         </div>
         
         <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
@@ -74,7 +80,7 @@ export function Directory() {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          {(user?.role === "GLOBAL_ADMIN" || user?.role === "BRANCH_ADMIN") && (
+          {!!user && (
             <button
               onClick={() => setIsAddModalOpen(true)}
               className="flex items-center justify-center gap-2 bg-royal-purple hover:bg-royal-purple/80 text-white py-2 px-4 rounded-xl font-medium transition-colors"
@@ -166,8 +172,12 @@ export function Directory() {
                 <input required value={newLeader.name} onChange={e => setNewLeader({...newLeader, name: e.target.value})} className="bg-[#1c0f33] border border-white/10 rounded-lg px-3 py-2 text-white outline-none focus:border-royal-purple" placeholder="Full Name" />
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-medium text-lilac">Group</label>
-                <input required value={newLeader.group_name} onChange={e => setNewLeader({...newLeader, group_name: e.target.value})} className="bg-[#1c0f33] border border-white/10 rounded-lg px-3 py-2 text-white outline-none focus:border-royal-purple" placeholder="e.g. TECH Mountain" />
+                <label className="text-sm font-medium text-lilac">Group or Department Description</label>
+                <input required value={newLeader.group_name} onChange={e => setNewLeader({...newLeader, group_name: e.target.value})} className="bg-[#1c0f33] border border-white/10 rounded-lg px-3 py-2 text-white outline-none focus:border-royal-purple" placeholder="e.g. TECH Mountain, Ushers, Calabar Cell Unit" />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-medium text-lilac">Leadership Title / Responsibility (Manually Typed)</label>
+                <input required value={newLeader.role} onChange={e => setNewLeader({...newLeader, role: e.target.value})} className="bg-[#1c0f33] border border-white/10 rounded-lg px-3 py-2 text-white outline-none focus:border-royal-purple" placeholder="e.g. Pastor, Coordinator, Cell Leader, Head of Dept" />
               </div>
               {user?.role === "GLOBAL_ADMIN" ? (
                 <>
@@ -291,6 +301,21 @@ export function Directory() {
                   <MessageSquare className="w-4 h-4" /> Message
                 </a>
               </div>
+
+              {(user?.role === "GLOBAL_ADMIN" || (user?.role === "BRANCH_ADMIN" && selectedLeader.branch === user?.branchName)) && (
+                <button
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    if (window.confirm(`Are you sure you want to delete leader ${selectedLeader.name}? They will be moved to the Trash Bin and can be restored within 30 days.`)) {
+                      await deleteLeader(selectedLeader.id);
+                      setSelectedLeader(null);
+                    }
+                  }}
+                  className="w-full mt-2 flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 active:bg-rose-500/30 text-rose-400 text-sm font-bold border border-rose-500/20 transition-all font-sans cursor-pointer"
+                >
+                  <Trash2 className="w-4 h-4" /> Delete Leader (30d Safe)
+                </button>
+              )}
             </div>
           </div>
         </div>

@@ -83,9 +83,9 @@ export default function App() {
             <Route path="approvals" element={<ProtectedRoute allowedRoles={['GLOBAL_ADMIN', 'BRANCH_ADMIN']}><Approvals /></ProtectedRoute>} />
             <Route path="finance" element={<Finance />} />
             <Route path="departments" element={<ProtectedRoute allowedRoles={['GLOBAL_ADMIN', 'BRANCH_ADMIN']}><Departments /></ProtectedRoute>} />
-            <Route path="homecells" element={<ProtectedRoute allowedRoles={['GLOBAL_ADMIN', 'BRANCH_ADMIN', 'DEPT_LEADER']}><HomeCells /></ProtectedRoute>} />
-            <Route path="interest" element={<ProtectedRoute allowedRoles={['GLOBAL_ADMIN', 'BRANCH_ADMIN']}><InterestGroups /></ProtectedRoute>} />
-            <Route path="foundationschool" element={<ProtectedRoute allowedRoles={['GLOBAL_ADMIN', 'BRANCH_ADMIN', 'FOUNDATION_LEADER']}><FoundationSchool /></ProtectedRoute>} />
+            <Route path="homecells" element={<ProtectedRoute allowedRoles={['GLOBAL_ADMIN', 'BRANCH_ADMIN', 'DEPT_LEADER', 'CELL_LEADER', 'HOME_CELL_COORD']}><HomeCells /></ProtectedRoute>} />
+            <Route path="interest" element={<ProtectedRoute allowedRoles={['GLOBAL_ADMIN', 'BRANCH_ADMIN', 'INTEREST_GROUP_LEADER']}><InterestGroups /></ProtectedRoute>} />
+            <Route path="foundationschool" element={<ProtectedRoute allowedRoles={['GLOBAL_ADMIN', 'BRANCH_ADMIN', 'FOUNDATION_SCHOOL']}><FoundationSchool /></ProtectedRoute>} />
             <Route path="directory" element={<Directory />} />
             <Route path="reports" element={<Reports />} />
             <Route path="settings" element={<Settings />} />

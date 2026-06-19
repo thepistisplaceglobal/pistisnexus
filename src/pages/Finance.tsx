@@ -1,22 +1,89 @@
+import { useState, useEffect } from "react";
 import { MetricCard } from "@/components/ui/MetricCard";
 import { InsightCard } from "@/components/ui/InsightCard";
 import { ChartPanel } from "@/components/ui/ChartPanel";
 import { Filter, Wallet } from "lucide-react";
+import { useAppStore } from "@/store/useAppStore";
+import { supabase } from "@/lib/supabase";
 
 export function Finance() {
-  const mockFinanceData = [
-    { week: "W1", income: 32000, expenses: 14000 },
-    { week: "W2", income: 34500, expenses: 13500 },
-    { week: "W3", income: 31000, expenses: 18000 },
-    { week: "W4", income: 42000, expenses: 15200 },
-  ];
+  const user = useAppStore((state) => state.user);
+  const [financeData, setFinanceData] = useState<{ week: string; income: number; expenses: number }[]>([
+    { week: "W1", income: 0, expenses: 0 },
+    { week: "W2", income: 0, expenses: 0 },
+    { week: "W3", income: 0, expenses: 0 },
+    { week: "W4", income: 0, expenses: 0 },
+  ]);
+  const [totalIncome, setTotalIncome] = useState(0);
+  const [totalExpenses, setTotalExpenses] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadFinanceData() {
+      if (!user) return;
+      try {
+        const { data, error } = await supabase
+          .from("unit_reports")
+          .select("*")
+          .eq("submitter_name", user.name)
+          .order("created_at", { ascending: true })
+          .limit(4);
+
+        if (error) {
+          console.error("Error fetching finance reports:", error);
+          return;
+        }
+
+        if (data && data.length > 0) {
+          let tInc = 0;
+          let tExp = 0;
+          
+          const mappedData = data.map((report, index) => {
+            const metrics = report.metrics || {};
+            const incStr = metrics["Opening balance (₦)"] || metrics["Cell offering amount (₦)"] || metrics["Inflow"] || "0";
+            const expStr = metrics["Expenses"] || metrics["Total Expenses (₦)"] || "0";
+            
+            const income = parseInt(String(incStr).replace(/,/g, ''), 10) || 0;
+            const expenses = parseInt(String(expStr).replace(/,/g, ''), 10) || 0;
+            
+            tInc += income;
+            tExp += expenses;
+
+            return {
+              week: `W${index + 1}`,
+              income,
+              expenses
+            };
+          });
+
+          // Pad with empty weeks if less than 4 reports
+          while (mappedData.length < 4) {
+            mappedData.push({ week: `W${mappedData.length + 1}`, income: 0, expenses: 0 });
+          }
+
+          setFinanceData(mappedData);
+          setTotalIncome(tInc);
+          setTotalExpenses(tExp);
+        }
+      } catch (err) {
+        console.error("Failed to load finance data", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadFinanceData();
+  }, [user]);
+
+  const netFlow = totalIncome - totalExpenses;
+  const unitLabel = user?.groupName || user?.deptName || "Your Unit";
 
   return (
     <div className="flex flex-col gap-6 md:gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white mb-1">
-            The Pistis Place Finance Intelligence Hub
+            {unitLabel} Finance Intelligence
           </h1>
           <p className="text-lilac/80 font-medium">Financial Flow & Resource Allocation</p>
         </div>
@@ -33,45 +100,43 @@ export function Finance() {
          {/* Semi-circle dial */}
          <div className="relative w-64 h-32 overflow-hidden flex items-end justify-center mb-2">
             <div className="w-64 h-64 rounded-full border-[16px] border-royal-purple/20 absolute top-0" />
-            <div className="w-64 h-64 rounded-full border-[16px] border-emerald-400 absolute top-0" style={{ clipPath: 'polygon(0 0, 100% 0, 100% 50%, 0 50%)', transform: 'rotate(45deg)' }} />
+            <div className="w-64 h-64 rounded-full border-[16px] border-emerald-400 absolute top-0 transition-transform duration-1000" style={{ clipPath: 'polygon(0 0, 100% 0, 100% 50%, 0 50%)', transform: 'rotate(45deg)' }} />
             
             <div className="absolute bottom-4 flex flex-col items-center">
                <span className="text-xs text-lilac uppercase tracking-wider font-semibold">Net Flow (MTD)</span>
-               <span className="text-3xl font-bold text-white tracking-tighter mt-1">₦78.6M</span>
+               <span className="text-3xl font-bold text-white tracking-tighter mt-1">₦{netFlow.toLocaleString()}</span>
             </div>
          </div>
       </section>
 
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <MetricCard title="Total Income (MTD)" value="₦139M" trend={8.2} icon={<Wallet/>} />
-        <MetricCard title="Total Expenses (MTD)" value="₦60.7M" trend={-4.1} icon={<Wallet/>} />
-        <MetricCard title="Reserve Fund" value="₦420M" trend={2.5} icon={<Wallet/>} />
-        <MetricCard title="Digital Giving %" value="82%" trend={5.0} icon={<Wallet/>} />
+        <MetricCard title="Total Income (MTD)" value={`₦${totalIncome.toLocaleString()}`} trend={0} icon={<Wallet/>} />
+        <MetricCard title="Total Expenses (MTD)" value={`₦${totalExpenses.toLocaleString()}`} trend={0} icon={<Wallet/>} />
+        <MetricCard title="Reserve Fund" value="₦0" trend={0} icon={<Wallet/>} />
+        <MetricCard title="Digital Giving %" value="0%" trend={0} icon={<Wallet/>} />
       </section>
 
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <ChartPanel 
-            title="Income vs Expense Trend (4 Weeks)" 
-            data={mockFinanceData} 
-            dataKey="income" 
-            xAxisKey="week" 
-            valuePrefix="₦"
-          />
+          {!loading && (
+            <ChartPanel 
+              title="Income vs Expense Trend (Recent Reports)" 
+              data={financeData} 
+              dataKey="income" 
+              xAxisKey="week" 
+              valuePrefix="₦"
+            />
+          )}
         </div>
         <div className="flex flex-col gap-4">
           <h3 className="text-sm font-medium tracking-wide uppercase text-lilac mb-1">Financial Intelligence</h3>
           <InsightCard 
             type="positive"
-            content="Digital giving platforms account for 82% of all inflows this month, reducing administrative processing time by 40%."
+            content={`You have a net positive inflow of ₦${netFlow.toLocaleString()} based on your recently submitted reports.`}
           />
           <InsightCard 
-            type="warning"
-            content="Facility maintenance expenses spiked in W3 across the Hub and Annex branches. Review requested."
-          />
-           <InsightCard 
             type="neutral"
-            content="Projected surplus for year-end is tracking safely above the requisite margin for the new building fund."
+            content="Regularly submit your weekly and monthly financial reports to ensure dashboard accuracy and clear communication with the administration."
           />
         </div>
       </section>

@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
 import { 
   GraduationCap, 
   Users, 
@@ -46,8 +45,6 @@ const defaultCandidates: Candidate[] = [
 
 export function FoundationSchool() {
   const { user, theme } = useAppStore();
-  const [searchParams] = useSearchParams();
-  const filterParam = searchParams.get("filter");
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [branchFilter, setBranchFilter] = useState<string>("ALL");
@@ -171,15 +168,11 @@ export function FoundationSchool() {
                           c.email.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesBranch = branchFilter === "ALL" || c.branch === branchFilter;
-    
-    // Support filtering only active/current students (omit INAUGURATED) if requested
-    const matchesStage = stageFilter === "ALL" 
-      ? (filterParam === "current" ? c.stage !== "INAUGURATED" : true)
-      : c.stage === stageFilter;
+    const matchesStage = stageFilter === "ALL" || c.stage === stageFilter;
 
-    // Sub-branch visibility constraint (BRANCH_ADMIN or FOUNDATION_LEADER can only see their own branch)
-    if (user?.role === "BRANCH_ADMIN" || user?.role === "FOUNDATION_LEADER") {
-      const isUserUyo = user.branchName?.toLowerCase().includes("uyo");
+    // Sub-branch visibility constraint (BRANCH_ADMIN and FOUNDATION_SCHOOL can only see their own branch)
+    if (user?.role === "BRANCH_ADMIN" || user?.role === "FOUNDATION_SCHOOL") {
+      const isUserUyo = user?.branchName?.toLowerCase().includes("uyo");
       const isCandidateUyo = c.branch.includes("Uyo");
       if (isUserUyo !== isCandidateUyo) return false;
     }
@@ -210,7 +203,7 @@ export function FoundationSchool() {
             <span className="text-xs text-lilac/70 font-medium">Pipeline Intake Command</span>
           </div>
           <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-white mb-1">
-            {filterParam === "current" ? "Active Foundation Students" : "Foundation School Pipeline"}
+            Foundation School Pipeline
           </h1>
           <p className="text-lilac/80 font-medium text-sm">
             Nurturing disciples, administering Doctrinal Foundations, and inaugurating fully integrated ministry members.
@@ -218,13 +211,40 @@ export function FoundationSchool() {
         </div>
 
         <button 
-          onClick={() => setShowEnrollModal(true)}
+          onClick={() => {
+            // Pre-fill the branch based on the user's branch
+            if (user?.branchName) {
+              const b = user.branchName.toLowerCase().includes("calabar") ? "Calabar" : "Uyo (HQ)";
+              setNewStudentBranch(b);
+            }
+            setShowEnrollModal(true);
+          }}
           className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-royal-purple to-[#818cf8] text-white font-bold text-sm tracking-wide shadow-lg hover:brightness-110 active:scale-95 transition-all"
         >
           <Plus className="w-4 h-4" />
           <span>Enroll Candidate</span>
         </button>
       </header>
+
+      {/* Oversight Dashboard Role Banner */}
+      {user?.role === "FOUNDATION_SCHOOL" && (
+        <GlassCard className="p-5 border border-royal-purple/30 bg-gradient-to-r from-royal-purple/10 to-transparent flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex gap-3.5">
+            <div className="p-3 bg-royal-purple/20 rounded-xl border border-royal-purple/30 text-white shrink-0">
+               <GraduationCap className="w-6 h-6 text-[#B193FB]" />
+            </div>
+            <div>
+               <h4 className="text-white font-bold text-base">Eminent Oversight Panel</h4>
+               <p className="text-lilac/70 text-xs leading-relaxed max-w-xl mt-1">
+                 Welcome, <strong>{user?.name || "Coordinator"}</strong>! As the **Foundation School Coordinator** directly under the **{user?.branchName || "Uyo (HQ)"} Branch**, you have spiritual and administrative oversight of doctrinal pipelines, trainee candidate classes, and graduations.
+               </p>
+            </div>
+          </div>
+          <div className="text-[11px] font-sans font-semibold border border-[#B193FB]/20 uppercase tracking-widest px-3 py-1.5 rounded-lg bg-[#2D0B4E]/30 text-[#B193FB]">
+             Foundation School Coordinator
+          </div>
+        </GlassCard>
+      )}
 
       {/* Overview Stats */}
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

@@ -12,27 +12,21 @@ interface Step {
 
 const TOUR_STEPS: Step[] = [
   {
-    targetId: "tour-dashboard-metrics",
+    targetId: "nav-HomeCells",
     title: "Intelligence Hub",
     content: "This is your main dashboard. View real-time metrics, system health, and high-level operations data.",
-    position: "bottom",
-  },
-  {
-    targetId: "tour-sidebar-nav",
-    title: "Global Navigation",
-    content: "Jump between different branches, departments, and cells. The sidebar adjusts to your administrative role.",
     position: "right",
   },
   {
-    targetId: "tour-global-messaging",
-    title: "Nexus Comms",
-    content: "Send and receive real-time messages across your entire organizational structure.",
-    position: "left",
+    targetId: "nav-Reports",
+    title: "Global Reporting",
+    content: "Consolidated reporting across departments. You will see different levels depending on your administrative clearance.",
+    position: "right",
   },
   {
-    targetId: "tour-directory",
-    title: "Leaders Directory",
-    content: "Quickly access and manage contacts for all organizational leaders globally.",
+    targetId: "nav-Settings",
+    title: "System Control",
+    content: "Manage settings, offline preferences, and system utility purging here.",
     position: "right",
   }
 ];

@@ -11,7 +11,7 @@ export function EmailDispatchLogsWidget() {
   // API Config State
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [resendApiKey, setResendApiKey] = useState(localStorage.getItem("VITE_RESEND_API_KEY") || "");
-  const [resendFrom, setResendFrom] = useState(localStorage.getItem("VITE_RESEND_FROM_EMAIL") || "onboarding@resend.dev");
+  const [resendFrom, setResendFrom] = useState(localStorage.getItem("VITE_RESEND_FROM_EMAIL") || "noreply@thepistisplaceglobal.org");
   const [configSaved, setConfigSaved] = useState(false);
 
   // Manual Trigger Test State

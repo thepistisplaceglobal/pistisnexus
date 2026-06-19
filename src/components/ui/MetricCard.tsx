@@ -11,7 +11,7 @@ interface MetricCardProps {
 
 export function MetricCard({ title, value, trend, icon }: MetricCardProps) {
   return (
-    <GlassCard className="flex flex-col gap-2">
+    <GlassCard className="flex flex-col gap-2 p-4">
       <div className="flex justify-between items-start text-lilac">
         <h3 className="text-sm font-medium tracking-wide uppercase">{title}</h3>
         {icon && <div className="text-royal-purple/80">{icon}</div>}

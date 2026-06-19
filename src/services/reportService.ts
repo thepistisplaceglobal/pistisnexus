@@ -33,9 +33,7 @@ export interface BranchReportSummary {
   returningGuests: number;
   departmentStatus: { name: string; verified: boolean }[];
   cellsStatus: { submitted: number; total: number };
-  interestGroupsStatus?: { submitted: number; total: number };
   verifiedUnitIds: string[];
-  foundationStatus?: { name: string; submitted: boolean; enrolledCount: number; graduatedCount: number };
 }
 
 export const ReportService = {
@@ -183,8 +181,7 @@ export const ReportService = {
     const { data: reports, error } = await supabase
       .from('unit_reports')
       .select('*')
-      .eq('branch_name', branchName)
-      .eq('status', 'PENDING_BRANCH');
+      .eq('branch_name', branchName);
 
     if (error) {
       console.error("Error compiling branch summary:", error);
@@ -199,11 +196,6 @@ export const ReportService = {
     const verifiedUnitIds: string[] = [];
     let cellsSubmitted = 0;
     const expectedCellsInfo = 8; // Stub: Expected 8 cells per branch
-    let interestGroupsSubmitted = 0;
-    const expectedInterestGroups = 3; // e.g. Singles Network, Business Hub, couples circle
-    
-    // Foundation School metrics tracker
-    let foundationStatus = { name: "Foundation School", submitted: false, enrolledCount: 0, graduatedCount: 0 };
     
     // Default expected departments for a branch
     const defaultDepartments = ["Media Department", "Choir", "Ushering Dept"];
@@ -218,10 +210,10 @@ export const ReportService = {
         
         // Attempt to parse out some attendance/finance values dynamically:
         // Normally, these keys come from the WeeklyReportFormModal submission.
-        const attendanceStr = metrics["Total number of department workers"] || metrics["Total attendance"] || metrics["Total membership"] || metrics["Active Enrolled Students"] || "0";
+        const attendanceStr = metrics["Total number of department workers"] || metrics["Total attendance"] || metrics["Total membership"] || "0";
         totalAttendance += parseInt(String(attendanceStr).replace(/,/g, ''), 10) || 0;
 
-        const incomeStr = metrics["Opening balance (₦)"] || metrics["Cell offering amount (₦)"] || metrics["Workbook/Materials Sales Completed (₦)"] || "0";
+        const incomeStr = metrics["Opening balance (₦)"] || metrics["Cell offering amount (₦)"] || "0";
         totalIncome += parseInt(String(incomeStr).replace(/,/g, ''), 10) || 0;
 
         // Parse Follow-up specific metrics
@@ -234,24 +226,7 @@ export const ReportService = {
         if (report.unit_type === "DEPT") {
           verifiedDeps.add(report.unit_name);
         } else if (report.unit_type === "CELL") {
-          if (metrics.cells_submitted_count !== undefined) {
-            cellsSubmitted += Number(metrics.cells_submitted_count);
-          } else {
-            cellsSubmitted += 1;
-          }
-        } else if (report.unit_type === "INTEREST_GROUP") {
-          interestGroupsSubmitted += 1;
-        } else if (report.unit_type === "FOUNDATION") {
-          foundationStatus.submitted = true;
-          foundationStatus.enrolledCount = parseInt(metrics["Active Enrolled Students"]) || 0;
-          foundationStatus.graduatedCount = parseInt(metrics["Graduated/Inaugurated Candidates this week"]) || 0;
-          
-          // Also include structural class attendance rates
-          const attRate = parseInt(metrics["Average Class Attendance Rate (%)"]) || 0;
-          if (attRate > 0) {
-             // add class turnouts to attendance estimation check
-             totalAttendance += Math.round((attRate / 100) * (foundationStatus.enrolledCount || 20));
-          }
+          cellsSubmitted += 1;
         }
       });
     }
@@ -276,9 +251,7 @@ export const ReportService = {
       returningGuests,
       departmentStatus,
       cellsStatus: { submitted: cellsSubmitted, total: expectedCellsInfo },
-      interestGroupsStatus: { submitted: interestGroupsSubmitted, total: expectedInterestGroups },
-      verifiedUnitIds,
-      foundationStatus
+      verifiedUnitIds
     };
   },
 
@@ -326,78 +299,5 @@ export const ReportService = {
       action_type: "BRANCH_REPORT_COMPILED",
       details: `Consolidated & approved ${compiledSummary.verifiedUnitIds.length} unit reports and submitted the weekly Branch report for "${branchName}".`
     });
-  },
-
-  /**
-   * Automates fetching all pending cell reports for the Home Cells Coordinator.
-   */
-  async getPendingCoordinatorReports(branchName: string): Promise<UnitReport[]> {
-    const { data, error } = await supabase
-      .from('unit_reports')
-      .select('*')
-      .eq('branch_name', branchName)
-      .eq('unit_type', 'CELL')
-      .eq('status', 'PENDING_COORDINATOR')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error("Error fetching pending coordinator cell reports:", error);
-      return [];
-    }
-    return data || [];
-  },
-
-  /**
-   * Collates separate cell reports, marks them approved, and submits the aggregated Cells Group Summary.
-   */
-  async collateAndSubmitCellCoordinatorReport(
-    branchName: string,
-    submitterName: string,
-    userId: string,
-    cellReportIds: string[],
-    aggregatedMetrics: any
-  ): Promise<boolean> {
-    try {
-      // 1. Submit the consolidated summary to Branch Admin as a unit report of type CELL and status PENDING_BRANCH
-      const { error: insertErr } = await supabase.from('unit_reports').insert([{
-        unit_name: 'Cells Group Summary',
-        unit_type: 'CELL',
-        branch_name: branchName,
-        submitted_by: userId,
-        submitter_name: submitterName,
-        metrics: {
-          ...aggregatedMetrics,
-          submitted_at: new Date().toISOString()
-        },
-        status: 'PENDING_BRANCH'
-      }]);
-
-      if (insertErr) throw insertErr;
-
-      // 2. Update the status of all verified individual cell reports to APPROVED
-      if (cellReportIds.length > 0) {
-        const { error: updateErr } = await supabase
-          .from('unit_reports')
-          .update({ status: 'APPROVED' })
-          .in('id', cellReportIds);
-        
-        if (updateErr) throw updateErr;
-      }
-
-      // 3. Log the activity feed entry
-      await ActivityService.logActivity({
-        user_id: userId,
-        user_name: submitterName,
-        user_role: "CELL_COORDINATOR",
-        branch_name: branchName,
-        action_type: "REPORT_SUBMITTED",
-        details: `Collated & approved ${cellReportIds.length} sub-cell meetings into the cells consolidated summary report and submitted it to the branch admin.`
-      });
-
-      return true;
-    } catch (err) {
-      console.error("Error collating cell reports:", err);
-      return false;
-    }
   }
 };

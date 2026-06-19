@@ -38,7 +38,7 @@ export function Branches() {
       </section>
 
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
-        <MetricCard title="Total Branches" value="5" trend={0} />
+        <MetricCard title="Total City Expressions" value="5" trend={0} />
         <MetricCard title="Avg Branch Growth" value="8.5%" trend={8.5} />
         <MetricCard title="Total Departments" value="24" trend={2.0} />
         <MetricCard title="Total Staff" value="142" trend={2} />
@@ -85,7 +85,7 @@ export function Branches() {
           />
           <InsightCard 
             type="warning"
-            content="3 new branches (Portharcourt, Lagos, Abuja) are currently in pending operational status and require staff allocations."
+            content="3 new City Expressions (Portharcourt, Lagos, Abuja) are currently in pending operational status and require staff allocations."
           />
         </div>
       </section>

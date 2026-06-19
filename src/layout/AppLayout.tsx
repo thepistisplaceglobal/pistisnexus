@@ -2,6 +2,8 @@ import { Outlet } from "react-router-dom";
 import { Sidebar } from "./Sidebar";
 import { BottomNav } from "./BottomNav";
 import { NotificationBell } from "@/components/ui/NotificationBell";
+import { OnboardingTour } from "@/components/ui/OnboardingTour";
+import { PwaInstallPrompt } from "@/components/ui/PwaInstallPrompt";
 import { ShieldAlert, WifiOff, RefreshCcw, KeyRound, Eye, EyeOff, Lock, CheckCircle2 } from "lucide-react";
 import { usePresence } from "@/hooks/usePresence";
 import { useAppStore } from "@/store/useAppStore";
@@ -115,10 +117,11 @@ export function AppLayout() {
                 </div>
               )}
               
+              <div id="topbar-actions" className="flex items-center gap-2 mr-2"></div>
               <NotificationBell />
             </div>
          </div>
-         <main className="flex-1 p-4 md:p-8 max-w-7xl mx-auto w-full z-10 relative">
+         <main className="flex-1 p-4 md:px-8 md:py-4 max-w-7xl mx-auto w-full z-10 relative">
            <Outlet />
 
             {showPasswordSetup && (
@@ -220,6 +223,8 @@ export function AppLayout() {
       </div>
 
       <BottomNav />
+      <OnboardingTour />
+      <PwaInstallPrompt />
     </div>
   );
 }

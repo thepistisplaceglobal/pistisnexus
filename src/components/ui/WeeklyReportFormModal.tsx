@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { GlassCard } from "./GlassCard";
 import { ActionButton } from "./ActionButton";
 import { X, CheckCircle2 } from "lucide-react";
@@ -6,7 +6,6 @@ import { useAppStore } from "@/store/useAppStore";
 import { motion, AnimatePresence } from "motion/react";
 import { supabase } from "@/lib/supabase";
 import { ActivityService } from "@/services/activityService";
-import { NotificationService } from "@/services/notificationService";
 
 interface WeeklyReportFormModalProps {
   isOpen: boolean;
@@ -18,6 +17,36 @@ export function WeeklyReportFormModal({ isOpen, onClose }: WeeklyReportFormModal
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [meetingHeld, setMeetingHeld] = useState<"Yes" | "No" | "">("");
   const [formData, setFormData] = useState<Record<string, any>>({});
+  const [hasLoadedDraft, setHasLoadedDraft] = useState(false);
+
+  useEffect(() => {
+    if (user?.id && isOpen && !hasLoadedDraft) {
+      const draftObj = localStorage.getItem(`reportDraft_${user.id}`);
+      if (draftObj) {
+        try {
+          const draft = JSON.parse(draftObj);
+          if (draft.meetingHeld) setMeetingHeld(draft.meetingHeld);
+          if (draft.formData) setFormData(draft.formData);
+        } catch (e) {
+          console.error("Error parsing report draft", e);
+        }
+      }
+      setHasLoadedDraft(true);
+    } else if (!isOpen) {
+      // Reset loading state when closed so it reloads if opened again
+      setHasLoadedDraft(false);
+    }
+  }, [user?.id, isOpen, hasLoadedDraft]);
+
+  useEffect(() => {
+    if (user?.id && isOpen && hasLoadedDraft) {
+      const draftObj = {
+        meetingHeld,
+        formData
+      };
+      localStorage.setItem(`reportDraft_${user.id}`, JSON.stringify(draftObj));
+    }
+  }, [formData, meetingHeld, user?.id, isOpen, hasLoadedDraft]);
 
   if (!isOpen || !user) return null;
 
@@ -27,22 +56,21 @@ export function WeeklyReportFormModal({ isOpen, onClose }: WeeklyReportFormModal
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      const unitName = user.deptName || user.groupName || 'Foundation School';
-      const unitType = role === 'DEPT_LEADER' ? 'DEPT' : role === 'CELL_LEADER' ? 'CELL' : role === 'FOUNDATION_LEADER' ? 'FOUNDATION' : 'INTEREST_GROUP';
+      const unitName = user.deptName || user.groupName || (role === 'FOUNDATION_SCHOOL' ? 'Foundation School' : 'Unknown Unit');
+      const unitType = (role === 'DEPT_LEADER' || role === 'FOUNDATION_SCHOOL') ? 'DEPT' : role === 'CELL_LEADER' ? 'CELL' : 'INTEREST_GROUP';
       const branchName = user.branchName || 'Unknown Branch';
 
       await supabase.from('unit_reports').insert([{
         unit_name: unitName,
         unit_type: unitType,
         branch_name: branchName,
-        submitted_by: user.id,
         submitter_name: user.name,
         metrics: {
           meetingHeld,
           ...formData,
           submitted_at: new Date().toISOString()
         },
-        status: role === 'CELL_LEADER' ? 'PENDING_COORDINATOR' : 'PENDING_BRANCH'
+        status: 'PENDING_BRANCH'
       }]);
 
       await ActivityService.logActivity({
@@ -51,15 +79,13 @@ export function WeeklyReportFormModal({ isOpen, onClose }: WeeklyReportFormModal
         user_role: role,
         branch_name: branchName,
         action_type: "REPORT_SUBMITTED",
-        details: `Submitted weekly metrics report for ${unitType === 'CELL' ? 'Cell' : unitType === 'DEPT' ? 'Department' : unitType === 'FOUNDATION' ? 'Foundation School' : 'Interest Group'} "${unitName}".`
+        details: `Submitted weekly metrics report for ${unitType === 'CELL' ? 'Cell' : unitType === 'DEPT' ? 'Department' : 'Interest Group'} "${unitName}".`
       });
 
-      // Trigger satisfying high-fidelity chime sound and offline persistent notification
-      NotificationService.triggerNotification(
-        "✅ Report Successfully Filed",
-        `Weekly report for "${unitName}" has been successfully logged and queued for Branch Admin verification.`,
-        "report"
-      );
+      // Clear draft upon successful submit
+      localStorage.removeItem(`reportDraft_${user.id}`);
+      setFormData({});
+      setMeetingHeld("");
     } catch (err) {
       console.error(err);
     }
@@ -246,37 +272,6 @@ export function WeeklyReportFormModal({ isOpen, onClose }: WeeklyReportFormModal
     </>
   );
 
-  const renderFoundationSchoolFields = () => (
-    <>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-white/10 mt-2">
-        <div className="md:col-span-2 font-semibold text-[#B193FB] text-xs uppercase tracking-wider">Foundation School Academic Progress & Cohort Statistics</div>
-        {renderField("Current Cohort Name / Code (e.g., Cohort 2026-B)", "text")}
-        {renderField("Active Enrolled Students", "number")}
-        {renderField("Average Class Attendance Rate (%)", "number")}
-        {renderField("Number of Candidates in Doctrinal Classes Track", "number")}
-        {renderField("Number of Candidates Pending Examinations", "number")}
-        {renderField("Graduated/Inaugurated Candidates this week", "number")}
-        
-        <div className="md:col-span-2 font-semibold text-[#B193FB] text-xs uppercase tracking-wider pt-4 border-t border-white/10">Teaching Modules Covered This Week</div>
-        <div className="md:col-span-2">
-          {renderField("Topics/Modules Covered (e.g. Doctrinal Foundations, Church Vision)", "textarea")}
-        </div>
-        
-        <div className="md:col-span-2 font-semibold text-[#B193FB] text-xs uppercase tracking-wider pt-4 border-t border-white/10">Finance Report</div>
-        {renderField("Opening Balance (₦)", "number")}
-        {renderField("Workbook/Materials Sales Completed (₦)", "number")}
-        <div className="md:col-span-2">
-          {renderField("Course Materials & Manuals expenditure/purchases (₦)", "textarea")}
-        </div>
-
-        <div className="md:col-span-2 font-semibold text-[#B193FB] text-xs uppercase tracking-wider pt-4 border-t border-white/10">Remarks & Special Prayer Requests</div>
-        <div className="md:col-span-2">
-          {renderField("Student feedback, challenges, observations, and prayer request files", "textarea")}
-        </div>
-      </div>
-    </>
-  );
-
   return (
     <AnimatePresence>
       <motion.div
@@ -303,7 +298,7 @@ export function WeeklyReportFormModal({ isOpen, onClose }: WeeklyReportFormModal
                     Date: {new Date().toLocaleDateString()}
                   </span>
                   <span className="font-semibold text-lilac bg-white/5 py-1 px-2 rounded">
-                    {role === "DEPT_LEADER" ? "Department" : role === "CELL_LEADER" ? "Home Cell" : role === "FOUNDATION_LEADER" ? "Foundation School" : "Interest Group"}: {user.deptName || user.groupName || (role === "FOUNDATION_LEADER" ? "Foundation School" : "N/A")}
+                    {role === "DEPT_LEADER" ? "Department" : role === "CELL_LEADER" ? "Home Cell" : role === "FOUNDATION_SCHOOL" ? "Foundation School" : "Interest Group"}: {user.deptName || user.groupName || (role === "FOUNDATION_SCHOOL" ? "Foundation School" : "N/A")}
                   </span>
                   <span className="font-semibold text-lilac bg-white/5 py-1 px-2 rounded">
                     Leader: {user.name}
@@ -316,10 +311,9 @@ export function WeeklyReportFormModal({ isOpen, onClose }: WeeklyReportFormModal
             </div>
 
             <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-8 flex flex-col gap-6">
-              {role === "DEPT_LEADER" && renderDepartmentFields()}
+              {(role === "DEPT_LEADER" || role === "FOUNDATION_SCHOOL") && renderDepartmentFields()}
               {role === "CELL_LEADER" && renderCellFields()}
               {role === "INTEREST_GROUP_LEADER" && renderInterestGroupFields()}
-              {role === "FOUNDATION_LEADER" && renderFoundationSchoolFields()}
             </form>
 
             <div className="p-4 md:p-6 border-t border-white/10 flex justify-end gap-3 shrink-0 bg-black/20">

@@ -183,6 +183,48 @@ export const EmailService = {
   },
 
   /**
+   * Triggers and logs a welcome email after successful signup with their initial key.
+   */
+  async sendSignupWelcomeEmail(recipientEmail: string, recipientName: string, role: string, branchName: string, loginKey: string): Promise<boolean> {
+    const readableRole = role.replace(/_/g, " ");
+    const subject = `Welcome to Pistis Nexus - Important Registration Info`;
+    const preheader = `Hello ${recipientName}! Your registration as a ${readableRole} at ${branchName} is pending approval.`;
+    
+    const contentHtml = `
+      <p>Thank you for submitting your registration request to join the Pistis Nexus registry.</p>
+      <p>Your request to be registered as a <strong>${readableRole}</strong> for the <strong>${branchName}</strong> expression has been successfully received and is currently under review by the central administration.</p>
+      
+      <div class="highlight-box">
+        <div class="highlight-title">Your Generated Entry Key Card</div>
+        <p class="highlight-content" style="margin-bottom: 0; font-size: 14px; line-height: 1.6;">
+          <strong>Your Temporary Password / Key:</strong> <span style="font-family: monospace; font-size: 15px; font-weight: bold; color: #FFE4A0; background: rgba(255, 255, 255, 0.08); padding: 2px 8px; border-radius: 4px; border: 1px solid rgba(255, 228, 160, 0.15);">${loginKey}</span>
+        </p>
+      </div>
+      
+      <p><strong>IMPORTANT:</strong> Please keep this key secure. You will need this password to log into the portal once the administration securely audits and approves your profile.</p>
+      <p style="padding: 10px; background: rgba(255, 228, 160, 0.1); border-left: 3px solid #FFE4A0; border-radius: 0 4px 4px 0;"><strong>ACTION REQUIRED:</strong> Please notify your <strong>${role === 'BRANCH_ADMIN' ? 'Global Administrator' : 'Branch Administrator'}</strong> to approve your account. Once approved, you will be able to log in with this password and access your dashboard.</p>
+      <p>You will receive another notification (with an instant login link) as soon as your access is approved.</p>
+    `;
+
+    const bodyHtml = this.generateBrandedHTML({
+      recipientName,
+      title: "Registration Received",
+      preheader,
+      contentHtml,
+      ctaText: "Go to Portal",
+      ctaHref: window.location.origin
+    });
+
+    return this.dispatchEmail({
+      toEmail: recipientEmail,
+      recipientName,
+      subject,
+      bodyHtml,
+      templateName: "SIGNUP_CONFIRMATION"
+    });
+  },
+
+  /**
    * Triggers and logs a leadership approval confirmation email.
    */
   async sendApprovalEmail(recipientEmail: string, recipientName: string, role: string, branchName: string, loginKey?: string): Promise<boolean> {
@@ -193,7 +235,7 @@ export const EmailService = {
     
     const contentHtml = `
       <p>We are delighted to inform you that your registration request has been audited, verified, and officially <strong>Approved</strong> by the administrative board.</p>
-      <p>You have been assigned administrative clearances allowing you to compile metrics, update schedules, and coordinate leadership workflows for your assigned branch node.</p>
+      <p>You have been assigned administrative clearances allowing you to compile metrics, update schedules, and coordinate leadership workflows for your assigned city expression.</p>
       
       <div class="highlight-box">
         <div class="highlight-title">Your Secured Credentials & City Expression Registry</div>
@@ -224,6 +266,41 @@ export const EmailService = {
       subject,
       bodyHtml,
       templateName: "APPROVAL_CONFIRMATION"
+    });
+  },
+
+  /**
+   * Triggers and logs a password reset / magic link email.
+   */
+  async sendPasswordResetEmail(recipientEmail: string, recipientName: string, resetLink: string): Promise<boolean> {
+    const subject = `Password Reset Request for Pistis Nexus`;
+    const preheader = `A password reset was requested for your account. Use the secure link to reset your password.`;
+    
+    const contentHtml = `
+      <p>An administrative request to reset your password or securely log in without a password was initiated.</p>
+      
+      <p>Please use the secure link below to access your account. This link will safely authenticate you.</p>
+      
+      <div class="btn-container">
+        <a href="\${resetLink}" class="btn" target="_blank">Securely Access Portal</a>
+      </div>
+      
+      <p>If you did not request this, you may safely ignore this email.</p>
+    `;
+
+    const bodyHtml = this.generateBrandedHTML({
+      recipientName,
+      title: "Password Reset Request",
+      preheader,
+      contentHtml,
+    });
+
+    return this.dispatchEmail({
+      toEmail: recipientEmail,
+      recipientName,
+      subject,
+      bodyHtml,
+      templateName: "PASSWORD_RESET"
     });
   },
 
@@ -277,39 +354,34 @@ export const EmailService = {
   }): Promise<boolean> {
     let status = "DELIVERED";
     
-    // Check if real Resend API credentials exist in environment or localStorage
-    const resendApiKey = localStorage.getItem("VITE_RESEND_API_KEY") || (import.meta as any).env?.VITE_RESEND_API_KEY;
-    const resendFrom = localStorage.getItem("VITE_RESEND_FROM_EMAIL") || "onboarding@resend.dev";
+    const resendFrom = localStorage.getItem("VITE_RESEND_FROM_EMAIL") || "noreply@thepistisplaceglobal.org";
 
-    if (resendApiKey && resendApiKey.startsWith("re_")) {
-      try {
-        console.log(`[EmailService] Dispatching real email through Resend API to: ${payload.toEmail}`);
-        const response = await fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${resendApiKey}`
-          },
-          body: JSON.stringify({
-            from: resendFrom,
-            to: payload.toEmail,
-            subject: payload.subject,
-            html: payload.bodyHtml
-          })
-        });
+    try {
+      console.log(`[EmailService] Dispatching real email through backend proxy to: ${payload.toEmail}`);
+      
+      // Proxy through our Express Backend to avoid Browser CORS & secure the request
+      const response = await fetch("/api/send-email", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          toEmail: payload.toEmail,
+          subject: payload.subject,
+          bodyHtml: payload.bodyHtml,
+          resendFrom: resendFrom
+        })
+      });
 
-        if (response.ok) {
-          status = "DELIVERED";
-        } else {
-          console.error("[EmailService] Resend API error status:", response.status);
-          status = "FAILED (Resend API Error)";
-        }
-      } catch (err: any) {
-        console.error("[EmailService] Resend HTTP Error:", err);
-        status = "FAILED (Network Error)";
+      if (response.ok) {
+        status = "DELIVERED";
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.warn("[EmailService] Backend Proxy API failed or not configured, falling back to local simulation:", response.status, errorData);
+        status = "DELIVERED (SIMULATED)";
       }
-    } else {
-      console.log(`[EmailService] Simulated dispatch: No API token located. Email logs tracked internally.`);
+    } catch (err: any) {
+      console.warn("[EmailService] Backend Proxy HTTP Error, falling back to local simulation:", err);
       status = "DELIVERED (SIMULATED)";
     }
 

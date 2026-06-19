@@ -6,18 +6,17 @@ import { useState, useRef, useEffect } from "react";
 import { AnimatePresence, motion } from "motion/react";
 
 const allItems = [
-  { path: "/", label: "Hub", icon: LayoutDashboard, roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN", "DEPT_LEADER", "CELL_LEADER", "INTEREST_GROUP_LEADER", "FOUNDATION_LEADER", "CELL_COORDINATOR"] },
-  { path: "/branches", label: "Branches", icon: Network, roles: ["GLOBAL_ADMIN"] },
+  { path: "/", label: "Hub", icon: LayoutDashboard, roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN", "DEPT_LEADER", "CELL_LEADER", "INTEREST_GROUP_LEADER", "FOUNDATION_SCHOOL", "HOME_CELL_COORD"] },
+  { path: "/branches", label: "City Expressions", icon: Network, roles: ["GLOBAL_ADMIN"] },
   { path: "/approvals", label: "Apps", icon: Key, roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN"] },
-  { path: "/finance", label: "Finance", icon: Wallet, roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN"] },
+  { path: "/finance", label: "Finance", icon: Wallet, roles: ["DEPT_LEADER", "CELL_LEADER", "INTEREST_GROUP_LEADER", "FOUNDATION_SCHOOL", "HOME_CELL_COORD"] },
   { path: "/departments", label: "Depts", icon: Users, roles: ["BRANCH_ADMIN"] },
-  { path: "/homecells", label: "Cells", icon: Home, roles: ["BRANCH_ADMIN", "CELL_LEADER", "CELL_COORDINATOR"] },
+  { path: "/homecells", label: "Cells", icon: Home, roles: ["BRANCH_ADMIN", "CELL_LEADER", "HOME_CELL_COORD", "DEPT_LEADER"] },
   { path: "/interest", label: "Groups", icon: Compass, roles: ["BRANCH_ADMIN", "INTEREST_GROUP_LEADER"] },
-  { path: "/foundationschool", label: "FoundS", icon: GraduationCap, roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN", "FOUNDATION_LEADER"] },
-  { path: "/foundationschool?filter=current", label: "Students", icon: Users, roles: ["FOUNDATION_LEADER"] },
-  { path: "/directory", label: "Directory", icon: Contact, roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN", "DEPT_LEADER", "CELL_LEADER", "INTEREST_GROUP_LEADER", "FOUNDATION_LEADER", "CELL_COORDINATOR"] },
-  { path: "/reports", label: "Reports", icon: FileText, roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN", "DEPT_LEADER", "CELL_LEADER", "INTEREST_GROUP_LEADER", "FOUNDATION_LEADER", "CELL_COORDINATOR"] },
-  { path: "/settings", label: "Settings", icon: SettingsIcon, roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN", "DEPT_LEADER", "CELL_LEADER", "INTEREST_GROUP_LEADER", "FOUNDATION_LEADER", "CELL_COORDINATOR"] },
+  { path: "/foundationschool", label: "FoundS", icon: GraduationCap, roles: ["BRANCH_ADMIN", "FOUNDATION_SCHOOL"] },
+  { path: "/directory", label: "Directory", icon: Contact, roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN", "DEPT_LEADER", "CELL_LEADER", "INTEREST_GROUP_LEADER", "FOUNDATION_SCHOOL", "HOME_CELL_COORD"] },
+  { path: "/reports", label: "Reports", icon: FileText, roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN", "DEPT_LEADER", "CELL_LEADER", "INTEREST_GROUP_LEADER", "FOUNDATION_SCHOOL", "HOME_CELL_COORD"] },
+  { path: "/settings", label: "Settings", icon: SettingsIcon, roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN", "DEPT_LEADER", "CELL_LEADER", "INTEREST_GROUP_LEADER", "FOUNDATION_SCHOOL", "HOME_CELL_COORD"] },
 ];
 
 export function BottomNav() {
@@ -99,9 +98,7 @@ export function BottomNav() {
               <div className="text-lilac/40 text-xs font-semibold uppercase tracking-widest px-1 mb-2">More Tools</div>
               <div className="grid grid-cols-2 gap-3">
                 {overflowItems.map((item, index) => {
-                  const isActive = item.path.includes("?")
-                    ? (location.pathname + location.search) === item.path
-                    : (location.pathname === item.path && !location.search);
+                  const isActive = location.pathname === item.path;
                   const Icon = item.icon;
                   return (
                     <motion.div
@@ -141,9 +138,7 @@ export function BottomNav() {
 
       <div className="w-full bg-[#070112]/92 backdrop-blur-2xl border-t border-white/5 px-2 pt-2 pb-[calc(6px+env(safe-area-inset-bottom,12px))] flex justify-around items-center z-50 relative shadow-[0_-10px_35px_rgba(0,0,0,0.8)]">
         {visibleItems.map((item) => {
-          const isActive = item.path.includes("?")
-            ? (location.pathname + location.search) === item.path
-            : (location.pathname === item.path && !location.search);
+          const isActive = location.pathname === item.path;
           const Icon = item.icon;
           return (
             <Link

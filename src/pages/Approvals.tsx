@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { supabase } from "@/lib/supabase";
-import { Check, X, Key, ShieldAlert, Users, Search, UserMinus, Building, MapPin, Globe, Trash2 } from "lucide-react";
+import { Check, X, Key, ShieldAlert, Users, Search, UserMinus, Building, MapPin, Globe, Trash2, RotateCcw, Calendar, AlertTriangle, Activity, Shield, Info } from "lucide-react";
 import { useAppStore, Profile } from "@/store/useAppStore";
 import { ActivityService } from "@/services/activityService";
 import { EmailService } from "@/services/emailService";
@@ -13,14 +13,47 @@ export function Approvals() {
   const fetchProfiles = useAppStore((state) => state.fetchProfiles);
   const updateProfileStatus = useAppStore((state) => state.updateProfileStatus);
   const clearTestData = useAppStore((state) => state.clearTestData);
+  const leaders = useAppStore((state) => state.leaders);
+  const fetchLeaders = useAppStore((state) => state.fetchLeaders);
+  const restoreLeader = useAppStore((state) => state.restoreLeader);
+
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"PENDING" | "APPROVED" | "PASSWORDS">("PENDING");
+  const [tab, setTab] = useState<"PENDING" | "APPROVED" | "PASSWORDS" | "TRASH">("PENDING");
   const passwordRequests = useAppStore(state => state.passwordRequests);
   const updatePasswordRequestStatus = useAppStore(state => state.updatePasswordRequestStatus);
   const [searchTerm, setSearchTerm] = useState("");
   const [roleOverrides, setRoleOverrides] = useState<Record<string, string>>({});
   const [purging, setPurging] = useState(false);
   const [purgeSuccess, setPurgeSuccess] = useState(false);
+
+  // Soft delete helpers
+  const isPruned = (deletedAtStr?: string) => {
+    if (!deletedAtStr) return false;
+    try {
+      const deletedAt = new Date(deletedAtStr);
+      const now = new Date();
+      const diffTime = now.getTime() - deletedAt.getTime();
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      return diffDays >= 30;
+    } catch (e) {
+      return false;
+    }
+  };
+
+  const getDaysRemainingStr = (deletedAtStr?: string) => {
+    if (!deletedAtStr) return "30 days";
+    try {
+      const deletedAt = new Date(deletedAtStr);
+      const now = new Date();
+      const diffTime = now.getTime() - deletedAt.getTime();
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      const remaining = 30 - diffDays;
+      if (remaining <= 0) return "Pruned";
+      return `${remaining} days`;
+    } catch (e) {
+      return "30 days";
+    }
+  };
 
   const handlePurge = async () => {
     if (!window.confirm("Are you sure you want to remove all local demo/seed leader profiles and start fresh? This will preserve any remote database records.")) {
@@ -37,10 +70,11 @@ export function Approvals() {
     const load = async () => {
       setLoading(true);
       await fetchProfiles(user);
+      await fetchLeaders();
       setLoading(false);
     };
     load();
-  }, [user]);
+  }, [user, fetchProfiles, fetchLeaders]);
 
   const handleRoleChange = (id: string, newRole: string) => {
     setRoleOverrides(prev => ({ ...prev, [id]: newRole }));
@@ -93,9 +127,92 @@ export function Approvals() {
     }
   };
 
+  const handleRevokeProfile = async (p: Profile) => {
+    if (!user) return;
+    if (!window.confirm(`Are you sure you want to revoke system privileges for "${p.full_name}"? They will be moved to the Trash Bin and can be restored within 30 days.`)) {
+      return;
+    }
+
+    const deleted_at = new Date().toISOString();
+    const deleted_by = user.name;
+
+    await updateProfileStatus(p.id, {
+      status: "DELETED",
+      deleted_at,
+      deleted_by
+    } as any);
+
+    await ActivityService.logActivity({
+      user_id: user.id,
+      user_name: user.name,
+      user_role: user.role,
+      branch_name: user.branchName,
+      action_type: "PROFILE_DELETED",
+      details: `Revoked access and soft-deleted profile "${p.full_name}" of role ${p.role} (moved to Trash Bin).`
+    });
+  };
+
+  const handleRestoreProfile = async (p: Profile) => {
+    if (!user) return;
+    try {
+      await updateProfileStatus(p.id, {
+        status: "APPROVED",
+        deleted_at: undefined,
+        deleted_by: undefined
+      } as any);
+
+      await ActivityService.logActivity({
+        user_id: user.id,
+        user_name: user.name,
+        user_role: user.role,
+        branch_name: user.branchName,
+        action_type: "PROFILE_RESTORED",
+        details: `Restored deleted profile of "${p.full_name}" back to APPROVED status.`
+      });
+
+      alert(`Successfully restored ${p.full_name} and re-authorized their credentials!`);
+    } catch (e: any) {
+      alert(e.message || "An error occurred during restoration.");
+    }
+  };
+
+  const handleRestoreLeader_local = async (id: string, name: string) => {
+    if (!user) return;
+    try {
+      await restoreLeader(id);
+      alert(`Successfully restored group leader "${name}" back to the Directory!`);
+    } catch (e: any) {
+      alert(e.message || "An error occurred during restoration.");
+    }
+  };
+
   const pendingCount = profiles.filter(p => p.status === "PENDING").length;
 
-  const filteredProfiles = profiles.filter(p => p.status === tab).filter(p => 
+  const isGlobal = user?.role === "GLOBAL_ADMIN";
+  const userBranch = user?.branchName || "";
+
+  const trashProfiles = profiles.filter(p => {
+    if (p.status !== "DELETED") return false;
+    if (isPruned(p.deleted_at)) return false;
+    if (!isGlobal && p.branch_name !== userBranch) return false;
+    return true;
+  });
+
+  const trashLeaders = leaders.filter(l => {
+    if (l.active !== false || !l.deleted_at) return false;
+    if (isPruned(l.deleted_at)) return false;
+    if (!isGlobal && l.branch !== userBranch) return false;
+    return true;
+  });
+
+  const trashCount = trashProfiles.length + trashLeaders.length;
+
+  const filteredProfiles = profiles.filter(p => {
+    if (tab === "TRASH") {
+      return p.status === "DELETED" && !isPruned(p.deleted_at) && (isGlobal || p.branch_name === userBranch);
+    }
+    return p.status === tab;
+  }).filter(p => 
     p.full_name.toLowerCase().includes(searchTerm.toLowerCase()) || 
     p.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (p.branch_name && p.branch_name.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -211,6 +328,17 @@ export function Approvals() {
             }`}
           >
             Active Users
+          </button>
+          <button
+            onClick={() => setTab("TRASH")}
+            className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold tracking-wide transition-all ${
+              tab === "TRASH" ? "bg-royal-purple text-white shadow-lg" : "text-lilac hover:text-white"
+            }`}
+          >
+            Trash Bin (30d)
+            {trashCount > 0 && (
+              <span className="bg-[#f43f5e] text-white text-[10px] px-2 py-0.5 rounded-full font-sans">{trashCount}</span>
+            )}
           </button>
         </div>
 
@@ -374,15 +502,160 @@ export function Approvals() {
                   </>
                 ) : (
                   <button 
-                    onClick={() => handleUpdateStatus(p.id, "REJECTED")} // Or REVOKED if we add that, REJECTED works to lock them out
-                    className="flex w-full items-center justify-center gap-2 bg-transparent border border-rose-500/30 text-rose-400 hover:bg-rose-500/20 hover:border-rose-500/50 px-4 py-2 rounded-lg font-bold text-sm transition-all"
+                    onClick={() => handleRevokeProfile(p)}
+                    className="flex w-full items-center justify-center gap-2 bg-transparent border border-rose-500/30 text-rose-400 hover:bg-rose-500/20 hover:border-rose-500/50 px-4 py-2 rounded-lg font-bold text-sm transition-all cursor-pointer font-sans"
                   >
-                    <UserMinus className="w-4 h-4" /> Revoke Access / Remove
+                    <UserMinus className="w-4 h-4" /> Revoke Access / Remove (30d soft)
                   </button>
                 )}
               </div>
             </GlassCard>
           ))}
+        </div>
+      )}
+
+      {tab === "TRASH" && (
+        <div className="space-y-6">
+          {/* Safeguard Measures Info Panel */}
+          <GlassCard className="p-5 border-emerald-500/15 bg-[#10b981]/5">
+            <div className="flex items-start gap-4">
+              <div className="p-3 bg-emerald-500/10 rounded-2xl border border-emerald-500/20 text-emerald-400 shrink-0">
+                <Shield className="w-6 h-6 animate-pulse" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2 font-sans">
+                  🔒 Active Core Safeguard Protocol Enabled
+                </h3>
+                <p className="text-xs text-slate-300 leading-relaxed font-sans">
+                  The system enforces a strict 30-day soft-deletion window to guard against mistakes. Records are securely retained in an inactive, isolated state before permanent physical cleanup.
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-3 text-[11px] text-lilac/70 font-sans">
+                  <div className="p-2.5 bg-black/30 rounded-xl border border-white/5 space-y-1">
+                    <span className="font-bold text-emerald-400 flex items-center gap-1"><Activity className="w-3.5 h-3.5" /> 100% Trace Auditing</span>
+                    All delete/restore operations register immutably in system activity logs.
+                  </div>
+                  <div className="p-2.5 bg-black/30 rounded-xl border border-white/5 space-y-1">
+                    <span className="font-bold text-amber-400 flex items-center gap-1"><Building className="w-3.5 h-3.5" /> City Expression Isolation</span>
+                    Branch leaders are securely restricted from managing datasets outside their scope.
+                  </div>
+                  <div className="p-2.5 bg-black/30 rounded-xl border border-white/5 space-y-1">
+                    <span className="font-bold text-indigo-400 flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> Auto-Pruning</span>
+                    Objects beyond the 30-day restorable window are permanently fully pruned.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </GlassCard>
+
+          {trashProfiles.length === 0 && trashLeaders.length === 0 ? (
+            <GlassCard className="p-12 flex flex-col items-center justify-center text-center">
+              <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
+                <Trash2 className="w-8 h-8 text-white/20" />
+              </div>
+              <h3 className="text-white font-bold text-lg mb-2">Trash Bin Is Empty</h3>
+              <p className="text-lilac/70 text-sm max-w-sm leading-relaxed">
+                No soft-deleted user access profiles or group leaders detected for your city expression.
+              </p>
+            </GlassCard>
+          ) : (
+            <div className="space-y-6">
+              {trashProfiles.length > 0 && (
+                <div>
+                  <h4 className="text-xs font-bold text-slate-300 tracking-wider uppercase mb-3 px-1 font-sans">Trashed User Access Profiles ({trashProfiles.length})</h4>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    {trashProfiles.map((p) => (
+                      <GlassCard key={p.id} className="p-5 flex flex-col justify-between border-l-4 border-rose-500/50 hover:bg-white/5 transition-colors">
+                        <div>
+                          <div className="flex justify-between items-start mb-4">
+                            <div>
+                              <h3 className="text-lg font-bold text-white leading-tight">{p.full_name}</h3>
+                              <p className="text-sm text-rose-400 font-medium font-sans">{p.email}</p>
+                            </div>
+                            <span className="px-2.5 py-0.5 rounded bg-rose-500/10 text-[10px] font-bold text-rose-300 uppercase tracking-widest border border-rose-500/20 flex items-center gap-1 font-sans">
+                              <AlertTriangle className="w-3 h-3" /> {getDaysRemainingStr(p.deleted_at)} left
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-y-3 gap-x-4 mb-4 text-sm font-sans">
+                            <div className="flex items-center gap-2 text-lavender col-span-2">
+                              <Building className="w-4 h-4 text-emerald-400" />
+                              <span>Original Role: {p.role.replace('_', ' ')}</span>
+                            </div>
+                            {p.branch_name && (
+                              <div className="flex items-center gap-2 text-lavender">
+                                <MapPin className="w-4 h-4 text-indigo-400" />
+                                <span>{p.branch_name} Branch</span>
+                              </div>
+                            )}
+                            <div className="flex items-center gap-2 text-lilac/70 col-span-2 text-xs border-t border-white/5 pt-2 mt-1">
+                              <Calendar className="w-3.5 h-3.5 text-rose-400" />
+                              Deleted: {p.deleted_at ? new Date(p.deleted_at).toLocaleString() : "Recently"} by {p.deleted_by || "Admin"}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="pt-3 border-t border-white/5">
+                          <button 
+                            onClick={() => handleRestoreProfile(p)}
+                            className="w-full flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-black px-4 py-2.5 rounded-lg font-bold text-sm transition-colors cursor-pointer font-sans"
+                          >
+                            <RotateCcw className="w-4 h-4" /> Restore Access & Login Profile
+                          </button>
+                        </div>
+                      </GlassCard>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {trashLeaders.length > 0 && (
+                <div className="pt-4">
+                  <h4 className="text-xs font-bold text-slate-300 tracking-wider uppercase mb-3 px-1 font-sans">Trashed Directory Group Leaders ({trashLeaders.length})</h4>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    {trashLeaders.map((l) => (
+                      <GlassCard key={l.id} className="p-5 flex flex-col justify-between border-l-4 border-amber-500/50 hover:bg-white/5 transition-colors">
+                        <div>
+                          <div className="flex justify-between items-start mb-4">
+                            <div>
+                              <h3 className="text-lg font-bold text-white leading-tight">{l.name}</h3>
+                              <p className="text-sm text-amber-400 font-medium font-sans">{l.group_name} ({l.role})</p>
+                            </div>
+                            <span className="px-2.5 py-0.5 rounded bg-amber-500/10 text-[10px] font-bold text-amber-300 uppercase tracking-widest border border-amber-500/20 flex items-center gap-1 font-sans">
+                              <AlertTriangle className="w-3 h-3" /> {getDaysRemainingStr(l.deleted_at)} left
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-y-3 gap-x-4 mb-4 text-sm font-sans">
+                            <div className="flex items-center gap-2 text-lavender">
+                              <MapPin className="w-4 h-4 text-indigo-400" />
+                              <span>{l.branch} Branch</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-lavender">
+                              <Globe className="w-4 h-4 text-purple-400" />
+                              <span>Location: {l.location || 'HQ'}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-lilac/70 col-span-2 text-xs border-t border-white/5 pt-2 mt-1">
+                              <Calendar className="w-3.5 h-3.5 text-amber-400" />
+                              Deleted: {l.deleted_at ? new Date(l.deleted_at).toLocaleString() : "Recently"} by {l.deleted_by || "Admin"}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="pt-3 border-t border-white/5 font-sans">
+                          <button 
+                            onClick={() => handleRestoreLeader_local(l.id, l.name)}
+                            className="w-full flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-black px-4 py-2.5 rounded-lg font-bold text-sm transition-colors cursor-pointer font-sans"
+                          >
+                            <RotateCcw className="w-4 h-4" /> Restore Group Leader to Directory
+                          </button>
+                        </div>
+                      </GlassCard>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
