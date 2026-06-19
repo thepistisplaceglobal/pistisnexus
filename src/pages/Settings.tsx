@@ -19,18 +19,181 @@ import {
   Loader2,
   Database,
   Trash2,
-  AlertTriangle
+  AlertTriangle,
+  Bell,
+  Sparkles,
+  SlidersHorizontal,
+  Eye,
+  EyeOff,
+  RefreshCw
 } from "lucide-react";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { ActionButton } from "@/components/ui/ActionButton";
+import { NotificationService } from "@/services/notificationService";
 
 import { AvatarUpload } from "@/components/ui/AvatarUpload";
 
-type TabType = "profile" | "security" | "info" | "admin";
+type TabType = "profile" | "security" | "info" | "admin" | "layout";
 
 export function Settings() {
   const { user, updateUser, logout } = useAppStore();
   const [activeTab, setActiveTab] = useState<TabType>("profile");
+
+  // Layout Management States
+  const [hiddenWidgets, setHiddenWidgets] = useState<Record<string, boolean>>({});
+  const [leftWidgets, setLeftWidgets] = useState<any[]>([]);
+  const [rightWidgets, setRightWidgets] = useState<any[]>([]);
+  const [layoutSuccessMsg, setLayoutSuccessMsg] = useState("");
+
+  const getDefaultLayouts = (role: string) => {
+    if (role === 'GLOBAL_ADMIN') {
+      return {
+        left: [
+          { id: 'global-trends', title: 'Global City Expression Trends' },
+          { id: 'souls-trend', title: 'Souls Trend & Follow-up Analytics' },
+          { id: 'attendance-trends', title: 'Attendance Trends & Analysis' },
+          { id: 'growth-retention', title: 'Monthly Growth & Retention Registry' },
+          { id: 'leader-activity', title: 'Leader Activity Breakdown' },
+          { id: 'branch-updates', title: 'City Expression Operational Updates' },
+          { id: 'activity-stream', title: 'Intelligence Audit Stream' },
+        ],
+        right: [
+          { id: 'leaderboard', title: 'Global Leaders Leaderboard' },
+          { id: 'ai-insight', title: 'Pistis AI Global Strategic Advice' },
+          { id: 'global-msg', title: 'Global Administrative Pipeline' },
+          { id: 'to-branch-msg', title: 'HQ to City Expression Dispatch Centre' },
+          { id: 'broadcast-reach', title: 'Strategic Broadcast Reach' },
+          { id: 'birthdays', title: 'Upcoming Birthdays Cohort' },
+        ]
+      };
+    }
+
+    if (role === 'BRANCH_ADMIN') {
+      return {
+        left: [
+          { id: 'souls-trend', title: 'Souls Trend & Follow-up Analytics' },
+          { id: 'attendance-trends', title: 'Attendance Trends & Analysis' },
+          { id: 'branch-updates', title: 'City Expression Operational Updates' },
+          { id: 'activity-stream', title: 'Intelligence Audit Stream' },
+        ],
+        right: [
+          { id: 'pending-reports', title: 'Pending Departmental & Unit Reports' },
+          { id: 'branch-msg', title: 'City Expression Broadcast Hub' },
+          { id: 'to-unit-msg', title: 'City Expression to Unit Dispatch Centre' },
+          { id: 'broadcast-reach', title: 'City Expression Broadcast Reach' },
+          { id: 'birthdays', title: 'City Expression Upcoming Birthdays' },
+          { id: 'ai-insight', title: 'Pistis AI City Expression Diagnostics' },
+        ]
+      };
+    }
+
+    return {
+      left: [
+        { id: 'role-chart', title: 'Oversight Membership & Attendance Trend' },
+        { id: 'activity-stream', title: 'Local Leadership Stream' },
+      ],
+      right: [
+        { id: 'schedule', title: 'Upcoming Service Briefings & Events' },
+        { id: 'action-engine', title: 'Action Engine & Reminders' },
+      ]
+    };
+  };
+
+  useEffect(() => {
+    if (!user) return;
+    const hiddenKey = `dashboard_hidden_v2_${user.role}_${user.email || 'guest'}`;
+    const layoutKey = `dashboard_layout_v2_${user.role}_${user.email || 'guest'}`;
+
+    const savedHidden = localStorage.getItem(hiddenKey);
+    if (savedHidden) {
+      try {
+        setHiddenWidgets(JSON.parse(savedHidden));
+      } catch (e) {
+        setHiddenWidgets({});
+      }
+    }
+
+    const savedLayout = localStorage.getItem(layoutKey);
+    const defaults = getDefaultLayouts(user.role);
+    if (savedLayout) {
+      try {
+        const parsed = JSON.parse(savedLayout);
+        if (parsed.left && parsed.right) {
+          setLeftWidgets(parsed.left);
+          setRightWidgets(parsed.right);
+        } else {
+          setLeftWidgets(defaults.left);
+          setRightWidgets(defaults.right);
+        }
+      } catch (e) {
+        setLeftWidgets(defaults.left);
+        setRightWidgets(defaults.right);
+      }
+    } else {
+      setLeftWidgets(defaults.left);
+      setRightWidgets(defaults.right);
+    }
+  }, [user]);
+
+  const saveHiddenState = (newHidden: Record<string, boolean>) => {
+    if (!user) return;
+    const hiddenKey = `dashboard_hidden_v2_${user.role}_${user.email || 'guest'}`;
+    localStorage.setItem(hiddenKey, JSON.stringify(newHidden));
+    setHiddenWidgets(newHidden);
+  };
+
+  const handleToggleWidgetHide = (id: string) => {
+    const next = { ...hiddenWidgets, [id]: !hiddenWidgets[id] };
+    saveHiddenState(next);
+  };
+
+  const handleExpandAll = () => {
+    if (!user) return;
+    const collapsedKey = `dashboard_collapsed_v2_${user.role}_${user.email || 'guest'}`;
+    const allExpanded: Record<string, boolean> = {};
+    [...leftWidgets, ...rightWidgets].forEach((w) => {
+      allExpanded[w.id] = false;
+    });
+    localStorage.setItem(collapsedKey, JSON.stringify(allExpanded));
+    // Also make sure all widgets are visible
+    saveHiddenState({});
+    showFeedback("All widgets restored, expanded, and set active!");
+  };
+
+  const handleCollapseAll = () => {
+    if (!user) return;
+    const collapsedKey = `dashboard_collapsed_v2_${user.role}_${user.email || 'guest'}`;
+    const allCollapsed: Record<string, boolean> = {};
+    [...leftWidgets, ...rightWidgets].forEach((w) => {
+      allCollapsed[w.id] = true;
+    });
+    localStorage.setItem(collapsedKey, JSON.stringify(allCollapsed));
+    // Also, hide them options or keep visibility as-is
+    showFeedback("All widgets collapsed into state bars!");
+  };
+
+  const handleResetLayout = () => {
+    if (!user) return;
+    const defaults = getDefaultLayouts(user.role);
+    const layoutKey = `dashboard_layout_v2_${user.role}_${user.email || 'guest'}`;
+    const collapsedKey = `dashboard_collapsed_v2_${user.role}_${user.email || 'guest'}`;
+    const hiddenKey = `dashboard_hidden_v2_${user.role}_${user.email || 'guest'}`;
+
+    localStorage.removeItem(layoutKey);
+    localStorage.removeItem(collapsedKey);
+    localStorage.removeItem(hiddenKey);
+
+    setLeftWidgets(defaults.left);
+    setRightWidgets(defaults.right);
+    setHiddenWidgets({});
+    showFeedback("Dashboard configuration reset to system defaults!");
+  };
+
+  const showFeedback = (msg: string) => {
+    setLayoutSuccessMsg(msg);
+    setTimeout(() => setLayoutSuccessMsg(""), 4000);
+  };
+  
   
   // Profile state
   const [fullName, setFullName] = useState(user?.name || "");
@@ -445,6 +608,7 @@ export function Settings() {
   const tabs = [
     { id: "profile" as TabType, label: "Profile", icon: UserIcon },
     { id: "security" as TabType, label: "Security", icon: Lock },
+    { id: "layout" as TabType, label: "Layout Controls", icon: SlidersHorizontal },
     ...(user?.role === "GLOBAL_ADMIN" || user?.role === "BRANCH_ADMIN" ? [
       { id: "admin" as TabType, label: "Data Maintenance", icon: Database }
     ] : []),
@@ -541,7 +705,8 @@ export function Settings() {
           transition={{ duration: 0.2 }}
         >
           {activeTab === "profile" && (
-            <GlassCard className="border-white/5 bg-[#120524]/40">
+            <>
+              <GlassCard className="border-white/5 bg-[#120524]/40">
               <form onSubmit={handleUpdateProfile} className="space-y-4">
                 <h4 className="text-sm font-semibold text-white uppercase tracking-wider mb-2">Profile Identity Details</h4>
                 
@@ -646,7 +811,85 @@ export function Settings() {
                 )}
               </form>
             </GlassCard>
-          )}
+
+            <GlassCard className="border-white/5 bg-[#120524]/40 mt-6 md:mt-8">
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Bell className="w-5 h-5 text-royal-purple" />
+                  <h4 className="text-sm font-semibold text-white uppercase tracking-wider">Role-Based Push Notifications</h4>
+                </div>
+                
+                <p className="text-xs text-lilac/70 leading-relaxed">
+                  The Pistis Nexus utilizes high-fidelity push notifications to keep you updated in real time. Depending on your assigned ministry role, you are customized to receive key status events and report activities.
+                </p>
+
+                <div className="bg-[#080211]/60 border border-white/5 p-4 rounded-xl space-y-3">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <span className="text-xs text-lilac font-medium block">Subscription Scope</span>
+                      <span className="text-xs text-white/50 mt-1 block leading-relaxed">
+                        {user?.role === 'GLOBAL_ADMIN' && "• Receive consolidated report submissions from City Expressions worldwide."}
+                        {user?.role === 'BRANCH_ADMIN' && `• Receive unit report submissions for cells & departments within "${user.branchName || 'your branch'}", and approval status details from Global HQ.`}
+                        {!['GLOBAL_ADMIN', 'BRANCH_ADMIN'].includes(user?.role || '') && `• Receive approval and corrective revision requests for your submitted "${user?.deptName || user?.groupName || 'unit'}" reports.`}
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-bold px-2 py-1 rounded bg-royal-purple/20 text-lilac shrink-0 uppercase tracking-widest self-start">
+                      {user?.role ? user.role.replace(/_/g, " ") : "GUILD_MEMBER"}
+                    </span>
+                  </div>
+
+                  <div className="border-t border-white/5 pt-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div>
+                      <span className="text-xs text-lilac font-medium block">Permission Status</span>
+                      <span className="text-xs text-white/50 block mt-0.5">
+                        Browser Level: <strong className="text-lilac capitalize">{('Notification' in window) ? Notification.permission : 'Not Supported'}</strong>
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {('Notification' in window) && Notification.permission !== 'granted' && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            NotificationService.requestPermission();
+                          }}
+                          className="bg-royal-purple/20 text-lilac hover:bg-royal-purple/35 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer"
+                        >
+                          Grant Access
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (user?.role === 'GLOBAL_ADMIN') {
+                            NotificationService.sendLocalNotification("Test: Unit report aggregation complete", {
+                              body: `Notification successfully simulated for Global HQ: "New consolidated report ready."`,
+                              icon: '/favicon.png'
+                            });
+                          } else if (user?.role === 'BRANCH_ADMIN') {
+                            NotificationService.sendLocalNotification("Test: New report from local cell", {
+                              body: `Notification successfully simulated for ${user.branchName || 'Branch'}: "A cell report was completed."`,
+                              icon: '/favicon.png'
+                            });
+                          } else {
+                            NotificationService.sendLocalNotification("Test: Report approved!", {
+                              body: `Notification successfully simulated for your unit: "${user?.deptName || user?.groupName || 'Department'} report approved."`,
+                              icon: '/favicon.png'
+                            });
+                          }
+                        }}
+                        className="bg-white/10 hover:bg-white/15 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition flex items-center gap-1 cursor-pointer"
+                      >
+                        <Sparkles className="w-3 h-3 text-lilac" /> Send Test Notification
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </GlassCard>
+          </>
+        )}
 
           {activeTab === "security" && (
             <GlassCard className="border-white/5 bg-[#120524]/40">
@@ -823,6 +1066,126 @@ export function Settings() {
                       )}
                     </div>
                   )}
+                </div>
+              </GlassCard>
+            </div>
+          )}
+
+          {activeTab === "layout" && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <GlassCard className="border-white/5 bg-[#120524]/40">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-white/10 pb-5 mb-5">
+                  <div>
+                    <h3 className="text-base font-bold text-white flex items-center gap-2">
+                      <SlidersHorizontal className="w-5 h-5 text-emerald-400" />
+                      Dashboard Layout Settings
+                    </h3>
+                    <p className="text-xs text-lilac/70 mt-1">
+                      Configure active components and visibility preferences for your profile dashboard scope.
+                    </p>
+                  </div>
+
+                  {/* Elegant Pill Actions Bar from layout screenshot */}
+                  <div className="flex items-center gap-1 bg-black/20 px-2 py-1.5 rounded-xl border border-white/5 self-end md:self-auto">
+                    <div className="flex items-center gap-1 text-[11px] font-mono font-bold text-white px-2.5 py-1 rounded bg-royal-purple/20 border border-royal-purple/30">
+                      <SlidersHorizontal className="w-3 h-3 text-[#d8b4fe]" />
+                      <span>Layout</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleExpandAll}
+                      className="p-1.5 rounded-lg text-emerald-400 hover:bg-white/5 hover:text-emerald-300 transition-colors cursor-pointer"
+                      title="Expand All Widgets & Reset Visibility"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCollapseAll}
+                      className="p-1.5 rounded-lg text-rose-400 hover:bg-white/5 hover:text-rose-300 transition-colors cursor-pointer"
+                      title="Collapse All Widgets"
+                    >
+                      <EyeOff className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleResetLayout}
+                      className="p-1.5 rounded-lg text-lilac hover:bg-white/5 hover:text-white transition-all cursor-pointer"
+                      title="Reset Layout Defaults"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+                {layoutSuccessMsg && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mb-4 flex items-center gap-2 text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 p-3 rounded-xl text-xs"
+                  >
+                    <Check className="w-4 h-4 shrink-0" />
+                    <span>{layoutSuccessMsg}</span>
+                  </motion.div>
+                )}
+
+                <div className="space-y-4">
+                  <div className="bg-black/20 border border-white/5 rounded-xl p-4">
+                    <h4 className="text-xs font-bold tracking-wider uppercase text-lilac mb-4 flex items-center justify-between">
+                      <span>Available Applets & Toggles (Oversight Role: {user?.role})</span>
+                      <span className="text-[10px] bg-royal-purple/20 text-[#d8b4fe] border border-royal-purple/20 px-2.5 py-0.5 rounded font-mono font-bold">
+                        {user?.role === 'GLOBAL_ADMIN' ? 'GLOBAL ADMINISTRATIVE SUITE' : user?.role === 'BRANCH_ADMIN' ? 'BRANCH OPERATIONS SUITE' : 'DEPARTMENT LEADERSHIP SUITE'}
+                      </span>
+                    </h4>
+
+                    {leftWidgets.length === 0 && rightWidgets.length === 0 ? (
+                      <div className="text-center py-6 text-xs text-lilac/50">
+                        No configurable metrics found for your user role.
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {[...leftWidgets, ...rightWidgets].map((widget) => {
+                          const isHidden = !!hiddenWidgets[widget.id];
+                          return (
+                            <div
+                              key={widget.id}
+                              className={`flex items-center justify-between p-3.5 rounded-xl border transition-all ${
+                                isHidden
+                                  ? "bg-black/30 border-dashed border-white/5 opacity-50"
+                                  : "bg-white/5 border-royal-purple/10 hover:border-royal-purple/25 hover:bg-white/[0.08]"
+                              }`}
+                            >
+                              <div className="flex flex-col gap-0.5 mr-3">
+                                <span className={`text-xs font-bold transition-colors ${isHidden ? 'text-lilac/50' : 'text-white'}`}>
+                                  {widget.title}
+                                </span>
+                                <span className="text-[9px] text-[#d8b4fe]/60 font-mono tracking-wide">ID: {widget.id}</span>
+                              </div>
+
+                              <label className="relative inline-flex items-center cursor-pointer select-none shrink-0">
+                                <input
+                                  type="checkbox"
+                                  checked={!isHidden}
+                                  onChange={() => handleToggleWidgetHide(widget.id)}
+                                  className="sr-only peer"
+                                />
+                                <div className="w-9 h-5 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-[#d8b4fe] after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500 peer-checked:after:bg-white"></div>
+                              </label>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="p-4 rounded-xl border border-white/5 bg-[#17092c]/40 text-xs text-lavender/70 space-y-2">
+                    <h5 className="font-bold text-white text-xs">Visual State Layout Syncing</h5>
+                    <ul className="list-inside list-disc space-y-1 text-[11px] leading-relaxed">
+                      <li>Toggled components are saved immediately in persistent browser configurations.</li>
+                      <li>Go back to the <strong>Hub Dashboard</strong> to view layout changes dynamically re-rendered in real-time.</li>
+                      <li>You can drag and order components inside the Hub columns directly for customized diagnostic flows.</li>
+                    </ul>
+                  </div>
                 </div>
               </GlassCard>
             </div>

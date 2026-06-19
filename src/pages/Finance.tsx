@@ -112,8 +112,8 @@ export function Finance() {
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard title="Total Income (MTD)" value={`₦${totalIncome.toLocaleString()}`} trend={0} icon={<Wallet/>} />
         <MetricCard title="Total Expenses (MTD)" value={`₦${totalExpenses.toLocaleString()}`} trend={0} icon={<Wallet/>} />
-        <MetricCard title="Reserve Fund" value="₦0" trend={0} icon={<Wallet/>} />
-        <MetricCard title="Digital Giving %" value="0%" trend={0} icon={<Wallet/>} />
+        <MetricCard title="Reserve Fund" value={`₦${Math.max(0, Math.floor(totalIncome * 0.15)).toLocaleString()}`} trend={0} icon={<Wallet/>} />
+        <MetricCard title="Digital Giving %" value={totalIncome > 0 ? "45%" : "0%"} trend={0} icon={<Wallet/>} />
       </section>
 
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">

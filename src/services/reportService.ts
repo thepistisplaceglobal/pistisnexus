@@ -269,7 +269,7 @@ export const ReportService = {
         branch_name: branchName,
         submitter_name: submitterName,
         metrics: {
-          attendance: Math.max(compiledSummary.totalAttendance, 1500), // Defaulting or mock value if none
+          attendance: compiledSummary.totalAttendance,
           compiled_income: compiledSummary.totalIncome,
           first_time_guests: compiledSummary.firstTimeGuests,
           returning_guests: compiledSummary.returningGuests,

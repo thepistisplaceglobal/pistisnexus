@@ -7,13 +7,13 @@ import { AnimatePresence, motion } from "motion/react";
 
 const allItems = [
   { path: "/", label: "Hub", icon: LayoutDashboard, roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN", "DEPT_LEADER", "CELL_LEADER", "INTEREST_GROUP_LEADER", "FOUNDATION_SCHOOL", "HOME_CELL_COORD"] },
-  { path: "/branches", label: "City Expressions", icon: Network, roles: ["GLOBAL_ADMIN"] },
+  { path: "/branches", label: "Branches", icon: Network, roles: ["GLOBAL_ADMIN"] },
   { path: "/approvals", label: "Apps", icon: Key, roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN"] },
-  { path: "/finance", label: "Finance", icon: Wallet, roles: ["DEPT_LEADER", "CELL_LEADER", "INTEREST_GROUP_LEADER", "FOUNDATION_SCHOOL", "HOME_CELL_COORD"] },
-  { path: "/departments", label: "Depts", icon: Users, roles: ["BRANCH_ADMIN"] },
-  { path: "/homecells", label: "Cells", icon: Home, roles: ["BRANCH_ADMIN", "CELL_LEADER", "HOME_CELL_COORD", "DEPT_LEADER"] },
-  { path: "/interest", label: "Groups", icon: Compass, roles: ["BRANCH_ADMIN", "INTEREST_GROUP_LEADER"] },
-  { path: "/foundationschool", label: "FoundS", icon: GraduationCap, roles: ["BRANCH_ADMIN", "FOUNDATION_SCHOOL"] },
+  { path: "/finance", label: "Finance", icon: Wallet, roles: ["DEPT_LEADER", "CELL_LEADER", "INTEREST_GROUP_LEADER"] },
+  { path: "/departments", label: "Depts", icon: Users, roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN", "DEPT_LEADER"] },
+  { path: "/homecells", label: "Cells", icon: Home, roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN", "CELL_LEADER", "HOME_CELL_COORD", "DEPT_LEADER"] },
+  { path: "/interest", label: "Groups", icon: Compass, roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN", "INTEREST_GROUP_LEADER"] },
+  { path: "/foundationschool", label: "FoundS", icon: GraduationCap, roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN", "FOUNDATION_SCHOOL"] },
   { path: "/directory", label: "Directory", icon: Contact, roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN", "DEPT_LEADER", "CELL_LEADER", "INTEREST_GROUP_LEADER", "FOUNDATION_SCHOOL", "HOME_CELL_COORD"] },
   { path: "/reports", label: "Reports", icon: FileText, roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN", "DEPT_LEADER", "CELL_LEADER", "INTEREST_GROUP_LEADER", "FOUNDATION_SCHOOL", "HOME_CELL_COORD"] },
   { path: "/settings", label: "Settings", icon: SettingsIcon, roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN", "DEPT_LEADER", "CELL_LEADER", "INTEREST_GROUP_LEADER", "FOUNDATION_SCHOOL", "HOME_CELL_COORD"] },
@@ -25,7 +25,14 @@ export function BottomNav() {
   const [showMore, setShowMore] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   
-  const navItems = user ? allItems.filter(item => item.roles.includes(user.role)) : [];
+  const navItems = user 
+    ? allItems.filter(item => {
+        if (user.roles && user.roles.length > 0) {
+          return item.roles.some(r => user.roles!.includes(r as any));
+        }
+        return item.roles.includes(user.role);
+      }) 
+    : [];
   
   useEffect(() => {
     if (user) {

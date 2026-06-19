@@ -1,14 +1,8 @@
+import { useState, useEffect } from "react";
 import { GlassCard } from "./GlassCard";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
-import { TrendingUp, Activity, Wallet } from "lucide-react";
-
-const aggregatedData = [
-  { month: "Jan", attendanceGrowth: 2.1, financeHealth: 68, engagementScore: 72 },
-  { month: "Feb", attendanceGrowth: 3.4, financeHealth: 74, engagementScore: 78 },
-  { month: "Mar", attendanceGrowth: 5.8, financeHealth: 72, engagementScore: 81 },
-  { month: "Apr", attendanceGrowth: 8.2, financeHealth: 85, engagementScore: 84 },
-  { month: "May", attendanceGrowth: 14.5, financeHealth: 92, engagementScore: 89 },
-];
+import { TrendingUp, Activity, Wallet, Loader2 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
@@ -20,7 +14,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
             <div className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
             <span className="text-lavender/80">{entry.name}:</span>
             <span className="text-white font-bold">
-              {entry.value}{entry.dataKey === "attendanceGrowth" ? "%" : "%"}
+              {entry.value}%
             </span>
           </div>
         ))}
@@ -31,6 +25,136 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export function GlobalTrendsWidget() {
+  const [aggregatedData, setAggregatedData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchGlobalTrends = async () => {
+      try {
+        // Fetch unit reports
+        const { data: reports, error } = await supabase
+          .from("unit_reports")
+          .select("*");
+          
+        // Fetch branch reports to compile real-time financials
+        const { data: bReports, error: bError } = await supabase
+          .from("branch_reports")
+          .select("*");
+
+        const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        const currentMonthIndex = new Date().getMonth();
+        
+        // Initialize months Jan to currentMonth
+        const initialData = monthNames.slice(0, currentMonthIndex + 1).map(m => ({
+          month: m,
+          attendanceTotal: 0,
+          inflowsTotal: 0,
+          expensesTotal: 0,
+          reportsSubmitted: 0,
+          attendanceGrowth: 0,
+          financeHealth: 0,
+          engagementScore: 0,
+        }));
+
+        // Fallback to ensuring we have at least Jan-May to match aesthetic
+        if (initialData.length < 5) {
+          const fallbackMonths = ["Jan", "Feb", "Mar", "Apr", "May"];
+          fallbackMonths.forEach(m => {
+            if (!initialData.some(d => d.month === m)) {
+              initialData.push({
+                month: m,
+                attendanceTotal: 0,
+                inflowsTotal: 0,
+                expensesTotal: 0,
+                reportsSubmitted: 0,
+                attendanceGrowth: 0,
+                financeHealth: 0,
+                engagementScore: 0,
+              });
+            }
+          });
+          initialData.sort((a, b) => monthNames.indexOf(a.month) - monthNames.indexOf(b.month));
+        }
+
+        if (!error && reports) {
+          reports.forEach(r => {
+            const metrics = r.metrics || {};
+            const dateStr = r.created_at || metrics.submitted_at;
+            if (!dateStr) return;
+            const rDate = new Date(dateStr);
+            const rMonth = monthNames[rDate.getMonth()];
+            
+            const target = initialData.find(d => d.month === rMonth);
+            if (target) {
+              const attStr = metrics["Total number of department workers"] || metrics["Total attendance"] || metrics["Total membership"] || "0";
+              const att = parseInt(String(attStr).replace(/,/g, ''), 10) || 0;
+              target.attendanceTotal += att;
+              target.reportsSubmitted += 1;
+            }
+          });
+        }
+
+        if (!bError && bReports) {
+          bReports.forEach(r => {
+            const metrics = r.metrics || {};
+            const dateStr = r.created_at;
+            if (!dateStr) return;
+            const rDate = new Date(dateStr);
+            const rMonth = monthNames[rDate.getMonth()];
+
+            const target = initialData.find(d => d.month === rMonth);
+            if (target) {
+              const income = metrics.compiled_income || metrics.inflow || 0;
+              const expenses = metrics.expenses || 0;
+              target.inflowsTotal += income;
+              target.expensesTotal += expenses;
+            }
+          });
+        }
+
+        // Calculate dynamic trends & metrics
+        // Expected total reports per month in a real scenario (e.g. 15 unit reports)
+        const expectedTotalReports = 15;
+
+        initialData.forEach((d, idx) => {
+          // Attendance Growth month-over-month
+          if (idx === 0) {
+            d.attendanceGrowth = d.attendanceTotal > 0 ? 5 : 0; // Baseline starting growth
+          } else {
+            const prev = initialData[idx - 1];
+            if (prev.attendanceTotal === 0) {
+              d.attendanceGrowth = d.attendanceTotal > 0 ? 5 : 0;
+            } else {
+              const growth = ((d.attendanceTotal - prev.attendanceTotal) / prev.attendanceTotal) * 100;
+              d.attendanceGrowth = parseFloat((Math.min(Math.max(growth, -50), 100)).toFixed(1));
+            }
+          }
+
+          // Finance Health: (Total Inflow - Expenses) / Total Inflow * 100
+          if (d.inflowsTotal === 0) {
+            d.financeHealth = 0;
+          } else {
+            const net = d.inflowsTotal - d.expensesTotal;
+            const ratio = (net / d.inflowsTotal) * 100;
+            d.financeHealth = Math.round(Math.min(Math.max(ratio, 0), 100));
+          }
+
+          // Engagement Score: Reports submitted vs expected
+          const score = (d.reportsSubmitted / expectedTotalReports) * 100;
+          d.engagementScore = Math.round(Math.min(score, 100));
+        });
+
+        setAggregatedData(initialData);
+      } catch (err) {
+        console.warn("Error fetching global trends dynamically:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchGlobalTrends();
+  }, []);
+
   return (
     <GlassCard className="flex flex-col gap-6">
       <div className="flex justify-between items-start">
@@ -56,8 +180,14 @@ export function GlobalTrendsWidget() {
         </div>
       </div>
 
-      <div className="h-[280px] w-full mt-4">
-        <ResponsiveContainer width="100%" height="100%">
+      <div className="h-[280px] w-full mt-4 flex items-center justify-center">
+        {loading ? (
+          <div className="flex flex-col items-center gap-2 text-lavender/80">
+            <Loader2 className="w-8 h-8 animate-spin text-royal-purple" />
+            <span className="text-xs">Computing trends...</span>
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={aggregatedData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
             <defs>
               <linearGradient id="colorAttendance" x1="0" y1="0" x2="0" y2="1">
@@ -107,6 +237,7 @@ export function GlobalTrendsWidget() {
             />
           </AreaChart>
         </ResponsiveContainer>
+        )}
       </div>
     </GlassCard>
   );

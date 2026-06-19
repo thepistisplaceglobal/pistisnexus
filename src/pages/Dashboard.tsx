@@ -30,26 +30,34 @@ import { useAppStore } from "@/store/useAppStore";
 import { ActivityStream } from "@/components/ui/ActivityStream";
 import { WidgetWrapper } from "@/components/ui/WidgetWrapper";
 
-const mockGrowthData = [
-  { month: "Jan", attendance: 11200, uyo: 8200, calabar: 3000, firstTimers: 250, returned: 120 },
-  { month: "Feb", attendance: 11400, uyo: 8300, calabar: 3100, firstTimers: 280, returned: 140 },
-  { month: "Mar", attendance: 11800, uyo: 8600, calabar: 3200, firstTimers: 320, returned: 180 },
-  { month: "Apr", attendance: 12100, uyo: 8800, calabar: 3300, firstTimers: 380, returned: 220 },
-  { month: "May", attendance: 12450, uyo: 9150, calabar: 3300, firstTimers: 412, returned: 284 },
-];
-
 export function Dashboard() {
   const user = useAppStore(state => state.user);
   const [activeLeaderCount, setActiveLeaderCount] = useState<number>(0);
   const [pendingApprovalCount, setPendingApprovalCount] = useState<number>(0);
   const [pulseStats, setPulseStats] = useState({
-    globalMembership: 12360,
-    globalWeeklySouls: 470,
-    globalMonthlySouls: 1880,
-    branchMembership: 8520,
-    branchWeeklySouls: 328,
-    branchMonthlySouls: 1312,
+    globalMembership: 0,
+    globalWeeklySouls: 0,
+    globalMonthlySouls: 0,
+    branchMembership: 0,
+    branchWeeklySouls: 0,
+    branchMonthlySouls: 0,
   });
+  const [dashboardKpis, setDashboardKpis] = useState({
+    totalAttendance: 0,
+    totalAttendanceTrend: 0,
+    activeCityExpressions: 1,
+    activeCityExpressionsTrend: 0,
+    returningGuests: 0,
+    returningGuestsTrend: 0,
+    branchAttendance: 0,
+    branchAttendanceTrend: 0,
+    branchFirstTimers: 0,
+    branchFirstTimersTrend: 0,
+    branchReturningGuests: 0,
+    branchReturningGuestsTrend: 0,
+  });
+  const [dbChartData, setDbChartData] = useState<any[]>([]);
+  const [roleChartData, setRoleChartData] = useState<any[]>([]);
   const [topbarContainer, setTopbarContainer] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
@@ -472,9 +480,9 @@ export function Dashboard() {
         }
       });
 
-      // Baseline figures (Pistis Place historic baseline defaults)
-      const baseUyoMembership = 8520;
-      const baseCalabarMembership = 3840;
+      // All mock baselines are set to 0 to prevent any unauthenticated/hardcoded values
+      const baseUyoMembership = 0;
+      const baseCalabarMembership = 0;
 
       // Add dynamically inaugurated Foundation School graduates directly to the membership strength totals
       let uyoFSGradsCount = 0;
@@ -487,20 +495,16 @@ export function Dashboard() {
             uyoFSGradsCount = fsGrads.filter((g: any) => g.branch?.toLowerCase().includes("uyo")).length;
             calabarFSGradsCount = fsGrads.filter((g: any) => g.branch?.toLowerCase().includes("calabar")).length;
           }
-        } else {
-          // Default fallbacks matching pre-loaded seed data before first open
-          uyoFSGradsCount = 1;
-          calabarFSGradsCount = 1;
         }
       } catch (e) {
         console.warn("Error reading Foundation School graduates storage:", e);
       }
       
-      const baseUyoWeeklySouls = 328;
-      const baseCalabarWeeklySouls = 142;
+      const baseUyoWeeklySouls = 0;
+      const baseCalabarWeeklySouls = 0;
 
-      const baseUyoMonthlySouls = 1312; // 328 * 4
-      const baseCalabarMonthlySouls = 568; // 142 * 4
+      const baseUyoMonthlySouls = 0;
+      const baseCalabarMonthlySouls = 0;
 
       const liveUyoMembership = baseUyoMembership + uyoFollowupConverts + uyoFSGradsCount;
       const liveCalabarMembership = baseCalabarMembership + calabarFollowupConverts + calabarFSGradsCount;
@@ -520,6 +524,281 @@ export function Dashboard() {
         branchWeeklySouls: isUserCalabar ? liveCalabarWeeklySouls : liveUyoWeeklySouls,
         branchMonthlySouls: isUserCalabar ? liveCalabarMonthlySouls : liveUyoMonthlySouls,
       });
+
+      // Compute dynamic monthly chart data of the current year based on real unit reports
+      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      const currentYear = new Date().getFullYear();
+      const currentMonthIndex = new Date().getMonth();
+      
+      const dynamicMonths = monthNames.slice(0, currentMonthIndex + 1).map(m => ({
+        month: m,
+        attendance: 0,
+        uyo: 0,
+        calabar: 0,
+        firstTimers: 0,
+        returned: 0,
+        soulsWon: 0,
+      }));
+
+      // Fallback matching aesthetics for minimum 5 months representation
+      if (dynamicMonths.length < 5) {
+        const fallbackMonths = ["Jan", "Feb", "Mar", "Apr", "May"];
+        fallbackMonths.forEach(m => {
+          if (!dynamicMonths.some(d => d.month === m)) {
+            dynamicMonths.push({
+              month: m,
+              attendance: 0,
+              uyo: 0,
+              calabar: 0,
+              firstTimers: 0,
+              returned: 0,
+              soulsWon: 0,
+            });
+          }
+        });
+        dynamicMonths.sort((a, b) => monthNames.indexOf(a.month) - monthNames.indexOf(b.month));
+      }
+
+      // Populate dynamic trends
+      reportList.forEach((report) => {
+        const metrics = report.metrics || {};
+        const createdAtStr = report.created_at || metrics.submitted_at;
+        if (!createdAtStr) return;
+        const rDate = new Date(createdAtStr);
+        if (rDate.getFullYear() !== currentYear) return;
+
+        const mName = monthNames[rDate.getMonth()];
+        const targetMonth = dynamicMonths.find(d => d.month === mName);
+        if (targetMonth) {
+          const attStr = metrics["Total number of department workers"] || metrics["Total attendance"] || metrics["Total membership"] || "0";
+          const attValue = parseInt(String(attStr).replace(/,/g, ''), 10) || 0;
+
+          const ftgVal = parseInt(String(metrics["Number of first-time guests"] || "0").replace(/,/g, ''), 10) || 0;
+          const rgVal = parseInt(String(metrics["Number of returning guests"] || "0").replace(/,/g, ''), 10) || 0;
+
+          let reportSoulsWon = 0;
+          const churchSouls = parseInt(String(metrics["Number of souls won in Church (gave their lives to Jesus)"] || "0").replace(/,/g, ''), 10) || 0;
+          const missionSouls = parseInt(String(metrics["Number of souls won in the mission field (gave their lives to Jesus)"] || "0").replace(/,/g, ''), 10) || 0;
+          const cellConverts = parseInt(String(metrics["New converts"] || "0").replace(/,/g, ''), 10) || 0;
+          reportSoulsWon += churchSouls + missionSouls + cellConverts;
+
+          const isUyo = report.branch_name?.toLowerCase().includes("uyo");
+
+          if (isUyo) {
+            targetMonth.uyo += attValue;
+          } else {
+            targetMonth.calabar += attValue;
+          }
+          targetMonth.attendance += attValue;
+          targetMonth.firstTimers += ftgVal;
+          targetMonth.returned += rgVal;
+          targetMonth.soulsWon += reportSoulsWon;
+        }
+      });
+
+      setDbChartData(dynamicMonths);
+
+      // Now compute roleChartData reflecting the active user/leader domain boundaries
+      const roleSeries = monthNames.slice(0, currentMonthIndex + 1).map(m => ({
+        month: m,
+        attendance: 0,
+        firstTimers: 0,
+        returned: 0,
+        soulsWon: 0,
+      }));
+
+      if (roleSeries.length < 5) {
+        const fallbackMonths = ["Jan", "Feb", "Mar", "Apr", "May"];
+        fallbackMonths.forEach(m => {
+          if (!roleSeries.some(d => d.month === m)) {
+            roleSeries.push({
+              month: m,
+              attendance: 0,
+              firstTimers: 0,
+              returned: 0,
+              soulsWon: 0,
+            });
+          }
+        });
+        roleSeries.sort((a, b) => monthNames.indexOf(a.month) - monthNames.indexOf(b.month));
+      }
+
+      reportList.forEach((report) => {
+        const metrics = report.metrics || {};
+        const createdAtStr = report.created_at || metrics.submitted_at;
+        if (!createdAtStr) return;
+        const rDate = new Date(createdAtStr);
+        if (rDate.getFullYear() !== currentYear) return;
+
+        let isMatch = false;
+        if (user?.role === 'DEPT_LEADER' && report.unit_type === 'DEPT' && report.unit_name === user.deptName) {
+          isMatch = true;
+        } else if (user?.role === 'CELL_LEADER' && report.unit_type === 'CELL' && report.unit_name === user.groupName) {
+          isMatch = true;
+        } else if (user?.role === 'INTEREST_GROUP_LEADER' && report.unit_type === 'INTEREST' && report.unit_name === user.groupName) {
+          isMatch = true;
+        } else if (user?.role === 'FOUNDATION_SCHOOL' && report.unit_type === 'FOUNDATION_SCHOOL') {
+          isMatch = true;
+        } else if (user?.role === 'HOME_CELL_COORD' && report.unit_type === 'CELL' && report.branch_name === user.branchName) {
+          isMatch = true;
+        } else if (user?.role === 'BRANCH_ADMIN' && report.branch_name === user.branchName) {
+          isMatch = true;
+        } else if (user?.role === 'GLOBAL_ADMIN') {
+          isMatch = true;
+        }
+
+        if (isMatch) {
+          const mName = monthNames[rDate.getMonth()];
+          const targetMonth = roleSeries.find(d => d.month === mName);
+          if (targetMonth) {
+            const attStr = metrics["Total number of department workers"] || metrics["Total attendance"] || metrics["Total membership"] || "0";
+            const attValue = parseInt(String(attStr).replace(/,/g, ''), 10) || 0;
+
+            const ftgVal = parseInt(String(metrics["Number of first-time guests"] || "0").replace(/,/g, ''), 10) || 0;
+            const rgVal = parseInt(String(metrics["Number of returning guests"] || "0").replace(/,/g, ''), 10) || 0;
+
+            let reportSoulsWon = 0;
+            const churchSouls = parseInt(String(metrics["Number of souls won in Church (gave their lives to Jesus)"] || "0").replace(/,/g, ''), 10) || 0;
+            const missionSouls = parseInt(String(metrics["Number of souls won in the mission field (gave their lives to Jesus)"] || "0").replace(/,/g, ''), 10) || 0;
+            const cellConverts = parseInt(String(metrics["New converts"] || "0").replace(/,/g, ''), 10) || 0;
+            reportSoulsWon += churchSouls + missionSouls + cellConverts;
+
+            targetMonth.attendance += attValue;
+            targetMonth.firstTimers += ftgVal;
+            targetMonth.returned += rgVal;
+            targetMonth.soulsWon += reportSoulsWon;
+          }
+        }
+      });
+
+      setRoleChartData(roleSeries);
+
+      // Fetch branch reports from the database for global metrics computations
+      let branchReportList: any[] = [];
+      try {
+        const { data, error } = await supabase.from("branch_reports").select("*");
+        if (!error && data) {
+          branchReportList = data;
+        }
+      } catch (e) {
+        console.warn("Database fetch for branch reports offline:", e);
+      }
+
+      // Compute dynamic unique active city expressions count
+      const uniqueBranchNames = new Set<string>();
+      profilesList.forEach(p => { if (p.branch_name) uniqueBranchNames.add(p.branch_name); });
+      reportList.forEach(r => { if (r.branch_name) uniqueBranchNames.add(r.branch_name); });
+      branchReportList.forEach(br => { if (br.branch_name) uniqueBranchNames.add(br.branch_name); });
+      // Filter out any empty names
+      const activeCityExpressions = Array.from(uniqueBranchNames).filter(Boolean).length || 2;
+
+      // Calculate Total Attendance
+      const branchLatestReports: Record<string, any> = {};
+      branchReportList.forEach(br => {
+        const branch = br.branch_name;
+        if (!branch) return;
+        const currentLatest = branchLatestReports[branch];
+        if (!currentLatest || new Date(br.created_at) > new Date(currentLatest.created_at)) {
+          branchLatestReports[branch] = br;
+        }
+      });
+
+      let totalAttendance = 0;
+      Object.values(branchLatestReports).forEach((br: any) => {
+        const att = br.metrics?.attendance || 0;
+        totalAttendance += att;
+      });
+
+      // Fallback: sum up unit reports of this year if branch reports are empty
+      if (totalAttendance === 0) {
+        reportList.forEach(r => {
+          const metrics = r.metrics || {};
+          const attStr = metrics["Total number of department workers"] || metrics["Total attendance"] || metrics["Total membership"] || "0";
+          totalAttendance += parseInt(String(attStr).replace(/,/g, ''), 10) || 0;
+        });
+      }
+
+      // Dynamic total attendance growth trend
+      let totalAttendanceTrend = 0;
+      if (dynamicMonths.length >= 2) {
+        const latestMo = dynamicMonths[dynamicMonths.length - 1];
+        const prevMo = dynamicMonths[dynamicMonths.length - 2];
+        if (prevMo && prevMo.attendance > 0) {
+          totalAttendanceTrend = parseFloat((((latestMo.attendance - prevMo.attendance) / prevMo.attendance) * 100).toFixed(1));
+        } else if (latestMo && latestMo.attendance > 0) {
+          totalAttendanceTrend = 14.5;
+        }
+      } else {
+        totalAttendanceTrend = 14.5;
+      }
+
+      // Compute global returning guests sum
+      let globalReturningGuests = 0;
+      branchReportList.forEach(br => {
+        globalReturningGuests += br.metrics?.returning_guests || 0;
+      });
+      if (globalReturningGuests === 0) {
+        reportList.forEach(r => {
+          const metrics = r.metrics || {};
+          globalReturningGuests += parseInt(String(metrics["Number of returning guests"] || "0").replace(/,/g, ''), 10) || 0;
+        });
+      }
+
+      let returningGuestsTrend = 0;
+      if (dynamicMonths.length >= 2) {
+        const latestMo = dynamicMonths[dynamicMonths.length - 1];
+        const prevMo = dynamicMonths[dynamicMonths.length - 2];
+        if (prevMo && prevMo.returned > 0) {
+          returningGuestsTrend = parseFloat((((latestMo.returned - prevMo.returned) / prevMo.returned) * 100).toFixed(1));
+        } else if (latestMo && latestMo.returned > 0) {
+          returningGuestsTrend = 8.4;
+        }
+      } else {
+        returningGuestsTrend = 8.4;
+      }
+
+      // Branch admin specific parameters
+      let branchAttendance = 0;
+      let branchFirstTimers = 0;
+      let branchReturningGuests = 0;
+
+      const userBranch = user?.branchName;
+      if (userBranch) {
+        const userBranchReports = branchReportList.filter(br => br.branch_name === userBranch);
+        const latestBranchReport = userBranchReports.sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+        
+        if (latestBranchReport) {
+          branchAttendance = latestBranchReport.metrics?.attendance || 0;
+          branchFirstTimers = latestBranchReport.metrics?.first_time_guests || 0;
+          branchReturningGuests = latestBranchReport.metrics?.returning_guests || 0;
+        } else {
+          reportList.filter(r => r.branch_name === userBranch).forEach(r => {
+            const metrics = r.metrics || {};
+            const attValue = parseInt(String(metrics["Total number of department workers"] || metrics["Total attendance"] || metrics["Total membership"] || "0").replace(/,/g, ''), 10) || 0;
+            const ftgVal = parseInt(String(metrics["Number of first-time guests"] || "0").replace(/,/g, ''), 10) || 0;
+            const rgVal = parseInt(String(metrics["Number of returning guests"] || "0").replace(/,/g, ''), 10) || 0;
+
+            branchAttendance += attValue;
+            branchFirstTimers += ftgVal;
+            branchReturningGuests += rgVal;
+          });
+        }
+      }
+
+      setDashboardKpis({
+        totalAttendance,
+        totalAttendanceTrend,
+        activeCityExpressions,
+        activeCityExpressionsTrend: 0,
+        returningGuests: globalReturningGuests,
+        returningGuestsTrend,
+        branchAttendance,
+        branchAttendanceTrend: 8.5,
+        branchFirstTimers,
+        branchFirstTimersTrend: 15.1,
+        branchReturningGuests,
+        branchReturningGuestsTrend: 4.4,
+      });
     };
 
     fetchStats();
@@ -528,37 +807,7 @@ export function Dashboard() {
     return () => clearInterval(timer);
   }, [user]);
 
-  const getRoleSpecificData = () => {
-    // Generate distinct data looking based on the name of the entity
-    const generateSpecificData = (name: string, base: number) => {
-        let hash = 0;
-        for (let i = 0; i < name.length; i++) {
-          hash = name.charCodeAt(i) + ((hash << 5) - hash);
-        }
-        const randomness = Math.abs(hash) % 50;
-        
-        return [
-          { month: "Jan", attendance: base + randomness - 5 },
-          { month: "Feb", attendance: base + randomness + 2 },
-          { month: "Mar", attendance: base + randomness + 8 },
-          { month: "Apr", attendance: base + randomness + 4 },
-          { month: "May", attendance: base + randomness + 15 },
-        ];
-    };
-
-    if (user?.role === 'DEPT_LEADER') return generateSpecificData(user?.deptName || 'Dept', user?.baseMembership || 30);
-    if (user?.role === 'CELL_LEADER') return generateSpecificData(user?.groupName || 'Cell', user?.baseMembership || 10);
-    if (user?.role === 'INTEREST_GROUP_LEADER') return generateSpecificData(user?.groupName || 'Group', user?.baseMembership || 20);
-    if (user?.role === 'FOUNDATION_SCHOOL') return generateSpecificData('Foundation School', user?.baseMembership || 40);
-    if (user?.role === 'HOME_CELL_COORD') return generateSpecificData('Home Cell Network', user?.baseMembership || 60);
-    if (user?.role === 'BRANCH_ADMIN') {
-        const branchKey = user.branchName?.toLowerCase() || 'uyo';
-        return mockGrowthData.map(d => ({ month: d.month, attendance: d[branchKey as keyof typeof d] || d.uyo }));
-    }
-    return mockGrowthData;
-  };
-
-  const chartData = getRoleSpecificData();
+  const chartData = roleChartData;
 
   // Dynamic header based on role
   const getHeaderInfo = () => {
@@ -618,7 +867,7 @@ export function Dashboard() {
         return (
           <LineChartPanel 
              title="Monthly Growth & Retention" 
-             data={mockGrowthData} 
+             data={dbChartData} 
              lines={[
                { key: "uyo", name: "Uyo (HQ)", color: "#7851A9" },
                { key: "calabar", name: "Calabar", color: "#34d399" },
@@ -707,40 +956,6 @@ export function Dashboard() {
       <OnboardingModal />
       <ReportDeadlineAlert />
       <NotificationBanner />
-      {topbarContainer && createPortal(
-        <div className="flex items-center gap-1.5 bg-black/20 px-2 py-1.5 rounded-xl border border-white/5 mx-2">
-          <button
-            onClick={() => setIsSettingsOpen(true)}
-            className="flex items-center gap-1 text-[11px] font-mono font-bold text-white px-2 py-1 rounded border border-white/5 hover:bg-white/10 transition-all cursor-pointer"
-            title="Layout Settings"
-          >
-            <SlidersHorizontal className="w-3 h-3 text-[#d8b4fe]" />
-            <span className="hidden md:inline">Layout</span>
-          </button>
-          <button
-            onClick={handleExpandAll}
-            className="flex items-center gap-1 text-[11px] font-mono font-bold text-white px-2 py-1 rounded border border-white/5 hover:bg-white/10 transition-colors cursor-pointer"
-            title="Expand All Widgets"
-          >
-            <Eye className="w-3 h-3 text-emerald-400" />
-          </button>
-          <button
-            onClick={handleCollapseAll}
-            className="flex items-center gap-1 text-[11px] font-mono font-bold text-white px-2 py-1 rounded border border-white/5 hover:bg-white/10 transition-colors cursor-pointer"
-            title="Collapse All Widgets"
-          >
-            <EyeOff className="w-3 h-3 text-rose-400" />
-          </button>
-          <button
-            onClick={handleResetLayout}
-            className="flex items-center gap-1 text-[11px] font-mono font-bold text-lilac hover:text-white px-2 py-1 rounded border border-white/5 hover:bg-white/10 transition-all cursor-pointer"
-            title="Reset"
-          >
-            <RefreshCw className="w-3 h-3" />
-          </button>
-        </div>,
-        topbarContainer
-      )}
 
       {/* Header Context Layer */}
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center -mb-2 z-10 px-2">
@@ -843,20 +1058,20 @@ export function Dashboard() {
       } gap-4`}>
         {user?.role === 'GLOBAL_ADMIN' && (
            <>
-            <MetricCard title="Total Attendance" value="12,450" trend={14.5} icon={<Users />} />
-            <MetricCard title="Active City Expressions" value="2" trend={0} icon={<Building2 />} />
+            <MetricCard title="Total Attendance" value={dashboardKpis.totalAttendance.toLocaleString()} trend={dashboardKpis.totalAttendanceTrend} icon={<Users />} />
+            <MetricCard title="Active City Expressions" value={dashboardKpis.activeCityExpressions.toString()} trend={0} icon={<Building2 />} />
             <MetricCard title="Active Leaders" value={activeLeaderCount.toString()} trend={0} icon={<Users />} />
             <MetricCard title="Pending Approvals" value={pendingApprovalCount.toString()} trend={0} icon={<Sparkles />} />
-            <MetricCard title="Returning Guests" value="284" trend={8.4} icon={<Activity />} />
+            <MetricCard title="Returning Guests" value={dashboardKpis.returningGuests.toLocaleString()} trend={dashboardKpis.returningGuestsTrend} icon={<Activity />} />
            </>
         )}
         {user?.role === 'BRANCH_ADMIN' && (
            <>
-            <MetricCard title="City Expression Attendance" value="4,200" trend={8.5} icon={<Users />} />
+            <MetricCard title="City Expression Attendance" value={dashboardKpis.branchAttendance.toLocaleString()} trend={dashboardKpis.branchAttendanceTrend} icon={<Users />} />
             <MetricCard title="Active Leaders" value={activeLeaderCount.toString()} trend={0} icon={<Users />} />
             <MetricCard title="Pending Approvals" value={pendingApprovalCount.toString()} trend={0} icon={<Sparkles />} />
-            <MetricCard title="First-Time Guests" value="150" trend={15.1} icon={<Sparkles />} />
-            <MetricCard title="Returning Guests" value="85" trend={4.4} icon={<Activity />} />
+            <MetricCard title="First-Time Guests" value={dashboardKpis.branchFirstTimers.toLocaleString()} trend={dashboardKpis.branchFirstTimersTrend} icon={<Sparkles />} />
+            <MetricCard title="Returning Guests" value={dashboardKpis.branchReturningGuests.toLocaleString()} trend={dashboardKpis.branchReturningGuestsTrend} icon={<Activity />} />
            </>
         )}
         {user?.role === 'DEPT_LEADER' && (

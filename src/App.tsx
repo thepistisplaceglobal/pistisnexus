@@ -17,6 +17,7 @@ import { useAppStore, Role } from "./store/useAppStore";
 import { InstallPrompt } from "@/components/ui/InstallPrompt";
 import { ConnectionToast } from "@/components/ui/ConnectionToast";
 import { NotificationService } from "@/services/notificationService";
+import { supabase } from "./lib/supabase";
 
 const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode, allowedRoles?: Role[] }) => {
   const user = useAppStore((state) => state.user);
@@ -54,6 +55,82 @@ function ScrollToTop() {
 export default function App() {
   const setIsOnline = useAppStore(state => state.setIsOnline);
   const theme = useAppStore(state => state.theme || "dark");
+  const user = useAppStore(state => state.user);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const verifyUserSession = async () => {
+      // Offline/master/seed logins bypass DB verification
+      if (user.id.startsWith("offline-") || user.id === "home-cell-coord-master") return;
+
+      try {
+        const { data: profile, error } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (error) {
+          console.warn("Failed to verify user profile state:", error);
+          return;
+        }
+
+        // If error is null but no profile row is loaded, they have been purged from DB profiles!
+        if (!profile) {
+          console.log("Active user profile has been purged from the remote database. Logging out...");
+          
+          try {
+            await supabase.auth.signOut();
+          } catch (e) {}
+
+          // Purge local cached profile copy so registration is also clean locally
+          try {
+            const localP = localStorage.getItem("local_profiles");
+            if (localP) {
+              const list = JSON.parse(localP);
+              const filteredList = list.filter((p: any) => p.id !== user.id && p.email !== user.email);
+              localStorage.setItem("local_profiles", JSON.stringify(filteredList));
+            }
+          } catch (e) {}
+
+          useAppStore.getState().logout();
+        }
+      } catch (err) {
+        console.error("Error verifying active session:", err);
+      }
+    };
+
+    verifyUserSession();
+
+    // Set up real-time role-based push notification channels
+    const unitReportsChannel = supabase
+      .channel("global_unit_reports_notifications")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "unit_reports" },
+        (payload) => {
+          NotificationService.handleRealtimeUnitReportEvent(payload, user);
+        }
+      )
+      .subscribe();
+
+    const branchReportsChannel = supabase
+      .channel("global_branch_reports_notifications")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "branch_reports" },
+        (payload) => {
+          NotificationService.handleRealtimeBranchReportEvent(payload, user);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(unitReportsChannel);
+      supabase.removeChannel(branchReportsChannel);
+    };
+  }, [user]);
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -90,7 +167,7 @@ export default function App() {
             <Route path="branches" element={<ProtectedRoute allowedRoles={['GLOBAL_ADMIN']}><Branches /></ProtectedRoute>} />
             <Route path="approvals" element={<ProtectedRoute allowedRoles={['GLOBAL_ADMIN', 'BRANCH_ADMIN']}><Approvals /></ProtectedRoute>} />
             <Route path="finance" element={<Finance />} />
-            <Route path="departments" element={<ProtectedRoute allowedRoles={['GLOBAL_ADMIN', 'BRANCH_ADMIN']}><Departments /></ProtectedRoute>} />
+            <Route path="departments" element={<ProtectedRoute allowedRoles={['GLOBAL_ADMIN', 'BRANCH_ADMIN', 'DEPT_LEADER']}><Departments /></ProtectedRoute>} />
             <Route path="homecells" element={<ProtectedRoute allowedRoles={['GLOBAL_ADMIN', 'BRANCH_ADMIN', 'DEPT_LEADER', 'CELL_LEADER', 'HOME_CELL_COORD']}><HomeCells /></ProtectedRoute>} />
             <Route path="interest" element={<ProtectedRoute allowedRoles={['GLOBAL_ADMIN', 'BRANCH_ADMIN', 'INTEREST_GROUP_LEADER']}><InterestGroups /></ProtectedRoute>} />
             <Route path="foundationschool" element={<ProtectedRoute allowedRoles={['GLOBAL_ADMIN', 'BRANCH_ADMIN', 'FOUNDATION_SCHOOL']}><FoundationSchool /></ProtectedRoute>} />
