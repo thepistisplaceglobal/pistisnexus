@@ -271,7 +271,7 @@ export function EmailDispatchLogsWidget() {
                   type="email"
                   value={resendFrom}
                   onChange={(e) => setResendFrom(e.target.value)}
-                  placeholder="onboarding@resend.dev"
+                  placeholder="noreply@thepistisplaceglobal.org"
                   className="w-full bg-black/20 border border-white/10 rounded-lg py-2 px-3 text-xs text-white focus:outline-none focus:border-royal-purple"
                 />
               </div>

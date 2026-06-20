@@ -236,6 +236,85 @@ export function Settings() {
   const [resetLoading, setResetLoading] = useState(false);
   const [resetSuccess, setResetSuccess] = useState(false);
 
+  // Clear Cache States
+  const [isClearingCache, setIsClearingCache] = useState(false);
+  const [cacheSuccessMsg, setCacheSuccessMsg] = useState("");
+
+  const handleClearCache = async () => {
+    setIsClearingCache(true);
+    setCacheSuccessMsg("");
+
+    try {
+      // 1. Unregister all service workers and trigger update
+      if ("serviceWorker" in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        for (const registration of registrations) {
+          // Trigger service worker update
+          await registration.update();
+          // Unregister as well to ensure total refresh on reload
+          await registration.unregister();
+        }
+      }
+
+      // 2. Clear known indexedDB databases
+      if (window.indexedDB) {
+        if (window.indexedDB.databases) {
+          try {
+            const dbs = await window.indexedDB.databases();
+            for (const db of dbs) {
+              if (db.name) {
+                window.indexedDB.deleteDatabase(db.name);
+              }
+            }
+          } catch (e) {
+            console.warn("Error enumerating indexedDB dbs:", e);
+          }
+        }
+        
+        // Directly target standard database names as safety
+        const knownDbs = [
+          "supabase-offline", 
+          "localforage", 
+          "keyval-store", 
+          "firebaseLocalStorageDb", 
+          "firestore"
+        ];
+        for (const name of knownDbs) {
+          try {
+            window.indexedDB.deleteDatabase(name);
+          } catch (e) {}
+        }
+      }
+
+      // 3. Clear all custom CacheStorage
+      if ("caches" in window) {
+        try {
+          const keys = await window.caches.keys();
+          for (const key of keys) {
+            await window.caches.delete(key);
+          }
+        } catch (e) {
+          console.warn("CacheStorage clearing issue:", e);
+        }
+      }
+
+      setCacheSuccessMsg("All caches, service workers, and local indexedDB collections purged successfully! Reloading platform...");
+      
+      setTimeout(() => {
+        window.location.reload();
+      }, 2500);
+
+    } catch (err: any) {
+      console.error("Cache clean failed:", err);
+      setCacheSuccessMsg("Purging complete with warnings. Live-rebooting platform...");
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+    } finally {
+      setIsClearingCache(false);
+    }
+  };
+
   const testConnection = async () => {
     setTestStatus("testing");
     setTestMessage("");
@@ -1066,6 +1145,50 @@ export function Settings() {
                       )}
                     </div>
                   )}
+                </div>
+              </GlassCard>
+
+              <GlassCard className="border-white/5 bg-[#120524]/40">
+                <h4 className="text-sm font-semibold text-white uppercase tracking-wider mb-3 flex items-center gap-2">
+                  <RefreshCw className="w-4 h-4 text-royal-purple" /> Storage & Cache Lifecycle
+                </h4>
+                <div className="space-y-3 text-xs leading-relaxed text-lilac/85">
+                  <p>
+                    Clear locally cached assets, reload active Service Worker definitions, and purge client-side IndexedDB databases. 
+                    This forces the application to fetch the absolute latest compiled code build directly from Cloud servers.
+                  </p>
+                  
+                  {cacheSuccessMsg && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: 5 }} 
+                      animate={{ opacity: 1, y: 0 }} 
+                      className="flex items-center gap-2 text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 p-3 rounded-xl text-xs"
+                    >
+                      <CheckCircle2 className="w-4 h-4 shrink-0" />
+                      <span>{cacheSuccessMsg}</span>
+                    </motion.div>
+                  )}
+
+                  <div className="pt-2 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={handleClearCache}
+                      disabled={isClearingCache}
+                      className="bg-royal-purple hover:bg-royal-purple/80 text-white px-5 py-2.5 text-xs font-semibold rounded-xl flex items-center gap-2 transition-all disabled:opacity-50 cursor-pointer shadow-[0_0_15px_rgba(120,81,169,0.15)]"
+                    >
+                      {isClearingCache ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          Purging Cached Assets...
+                        </>
+                      ) : (
+                        <>
+                          <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+                          Clear Cache & Reload
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
               </GlassCard>
             </div>

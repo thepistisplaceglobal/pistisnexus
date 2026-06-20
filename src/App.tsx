@@ -67,7 +67,7 @@ export default function App() {
       try {
         const { data: profile, error } = await supabase
           .from("profiles")
-          .select("id")
+          .select("id, status")
           .eq("id", user.id)
           .maybeSingle();
 
@@ -76,9 +76,9 @@ export default function App() {
           return;
         }
 
-        // If error is null but no profile row is loaded, they have been purged from DB profiles!
-        if (!profile) {
-          console.log("Active user profile has been purged from the remote database. Logging out...");
+        // If no profile, or if status is not APPROVED, sign out!
+        if (!profile || profile.status === "PENDING" || profile.status === "REJECTED") {
+          console.log("Active user profile is no longer active (status: " + (profile?.status || 'deleted') + "). Logging out...");
           
           try {
             await supabase.auth.signOut();

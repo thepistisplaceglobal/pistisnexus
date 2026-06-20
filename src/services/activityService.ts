@@ -193,7 +193,43 @@ export const ActivityService = {
         });
       }
 
-      // 5. Add any locally logged actions from localStorage
+      // 5. Fetch recent profiles for leadership registrations and profile approvals
+      let profileQuery = supabase.from("profiles").select("*").order("created_at", { ascending: false }).limit(10);
+      if (currentUserBranch) {
+        profileQuery = profileQuery.eq("branch_name", currentUserBranch);
+      }
+      const { data: dbProfiles } = await profileQuery;
+      if (dbProfiles) {
+        dbProfiles.forEach((p) => {
+          if (p.status === "PENDING") {
+            activities.push({
+              id: `profile-reg-${p.id}`,
+              user_id: p.id,
+              user_name: p.full_name || "New Leader",
+              user_role: p.role || "GLOBAL_ADMIN",
+              branch_name: p.branch_name,
+              action_type: "LEADER_REGISTERED",
+              details: `Leader registration submitted for "${p.full_name}" as ${p.role.replace("_", " ")} in "${p.branch_name || 'N/A'}" branch.`,
+              created_at: p.created_at || new Date().toISOString(),
+              is_fallback: true
+            });
+          } else if (p.status === "APPROVED") {
+            activities.push({
+              id: `profile-app-${p.id}`,
+              user_id: p.id,
+              user_name: p.full_name || "Leader",
+              user_role: p.role || "GLOBAL_ADMIN",
+              branch_name: p.branch_name,
+              action_type: "PROFILE_APPROVED",
+              details: `Leader profile for "${p.full_name}" (${p.role.replace("_", " ")}) has been approved after administrative review.`,
+              created_at: p.created_at || new Date().toISOString(),
+              is_fallback: true
+            });
+          }
+        });
+      }
+
+      // 6. Add any locally logged actions from localStorage
       const localLogs: ActivityLog[] = JSON.parse(localStorage.getItem("local_activity_logs") || "[]");
       localLogs.forEach((log) => {
         // Only include if it matches branch permissions

@@ -354,7 +354,7 @@ export const EmailService = {
   }): Promise<boolean> {
     let status = "DELIVERED";
     
-    const resendFrom = localStorage.getItem("VITE_RESEND_FROM_EMAIL") || "noreply@thepistisplaceglobal.org";
+    const resendFrom = import.meta.env.VITE_RESEND_FROM_EMAIL || localStorage.getItem("VITE_RESEND_FROM_EMAIL") || "noreply@thepistisplaceglobal.org";
 
     try {
       console.log(`[EmailService] Dispatching real email through backend proxy to: ${payload.toEmail}`);

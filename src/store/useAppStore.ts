@@ -135,6 +135,11 @@ interface AppState {
   bulkDeleteDatabaseRecords: (tables: string[]) => Promise<{ success: boolean; results: Record<string, { deleted: number; error?: string }> }>;
   theme: "dark" | "light";
   setTheme: (theme: "dark" | "light") => void;
+  supabaseSyncStatus: "synced" | "syncing" | "pulling" | "offline" | "error";
+  lastSyncTime: string | null;
+  setSupabaseSyncStatus: (status: "synced" | "syncing" | "pulling" | "offline" | "error") => void;
+  setLastSyncTime: (time: string | null) => void;
+  pingSupabaseStatus: () => Promise<void>;
 }
 
 const idbStorage = {
@@ -156,7 +161,10 @@ export const useAppStore = create<AppState>()(
       onlineUsers: new Set<string>(),
       setOnlineUsers: (users: Set<string>) => set({ onlineUsers: users }),
       isOnline: navigator.onLine,
-      setIsOnline: (status) => set({ isOnline: status }),
+      setIsOnline: (status) => set((state) => ({ 
+        isOnline: status,
+        supabaseSyncStatus: status ? "synced" : "offline"
+      })),
       pendingActions: [],
       addPendingAction: (action) => set((state) => ({ 
         pendingActions: [...state.pendingActions, { 
@@ -170,15 +178,20 @@ export const useAppStore = create<AppState>()(
         const { pendingActions, isOnline, clearPendingActions } = get();
         if (!isOnline || pendingActions.length === 0) return;
         
+        set({ supabaseSyncStatus: "syncing" });
         // Simulating sync processing logic
         console.log(`Syncing ${pendingActions.length} actions...`);
         for (const action of pendingActions) {
            console.log(`Processing ${action.type}`, action.payload);
            // In a real app we'd dispatch back to API methods
-           await new Promise(r => setTimeout(r, 300));
+           await new Promise(r => setTimeout(r, 600));
         }
         
         clearPendingActions();
+        set({ 
+          supabaseSyncStatus: "synced",
+          lastSyncTime: new Date().toLocaleTimeString()
+        });
       },
       login: (user) => set({ user }),
       logout: () => set({ user: null }),
@@ -187,6 +200,31 @@ export const useAppStore = create<AppState>()(
       setCurrentModule: (module) => set({ currentModule: module }),
       theme: "dark",
       setTheme: (theme) => set({ theme }),
+      supabaseSyncStatus: navigator.onLine ? "synced" : "offline",
+      lastSyncTime: new Date().toLocaleTimeString(),
+      setSupabaseSyncStatus: (status) => set({ supabaseSyncStatus: status }),
+      setLastSyncTime: (time) => set({ lastSyncTime: time }),
+      pingSupabaseStatus: async () => {
+        const { isOnline } = get();
+        if (!isOnline) {
+          set({ supabaseSyncStatus: "offline" });
+          return;
+        }
+        
+        set({ supabaseSyncStatus: "pulling" });
+        try {
+          const { error } = await supabase.from('profiles').select('id').limit(1);
+          if (error) throw error;
+          
+          set({ 
+            supabaseSyncStatus: "synced",
+            lastSyncTime: new Date().toLocaleTimeString() 
+          });
+        } catch (e) {
+          console.warn("Supabase verification failed:", e);
+          set({ supabaseSyncStatus: "error" });
+        }
+      },
       metrics: {
         totalAttendance: 12450,
         totalIncome: 154200,

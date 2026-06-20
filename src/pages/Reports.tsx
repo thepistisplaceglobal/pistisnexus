@@ -523,6 +523,171 @@ export function Reports() {
     doc.save(`The_Pistis_Place_${safeRole}_Report.pdf`);
   };
 
+  const exportCurrentReportToPDF = () => {
+    if (!activeReview) return;
+    const { type, report } = activeReview;
+    const doc = new jsPDF();
+
+    // 1. Draw elegant Header block (deep filled royal purple banner)
+    doc.setFillColor(76, 29, 149); // Dark deep purple
+    doc.rect(0, 0, 210, 42, "F");
+
+    // Header Text
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    doc.text("THE PISTIS PLACE GLOBAL", 14, 18);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(216, 180, 254); // Light lavender text
+    doc.text("OFFICIAL INTELLIGENCE & SUBMISSION SYSTEM", 14, 25);
+    doc.text(`EXPORT DATE: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`, 14, 32);
+
+    // Decorative right-aligned tag
+    doc.setFillColor(16, 185, 129); // Emerald accent
+    doc.rect(142, 12, 54, 8, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    doc.text(`STATUS: ${report.status.toUpperCase()}`, 145, 17.5);
+
+    // 2. Report Summary Section
+    doc.setTextColor(31, 41, 55); // Rich dark text
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text(`${type === "BRANCH" ? "BRANCH" : "UNIT"} SUMMARY REPORT`, 14, 52);
+
+    // Draw horizontal separator
+    doc.setDrawColor(229, 231, 235);
+    doc.setLineWidth(1);
+    doc.line(14, 56, 196, 56);
+
+    // Formatted Metadata Details (2 Columns)
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(107, 114, 128); // Slate 500
+    doc.text("Report ID:", 14, 63);
+    doc.text("Branch Name:", 14, 69);
+    doc.text("Date Submitted:", 14, 75);
+
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(31, 41, 55); // Slate 800
+    doc.text(String(report.id), 42, 63);
+    doc.text(String(report.branch_name || "N/A"), 42, 69);
+    doc.text(report.created_at ? new Date(report.created_at).toLocaleString() : "N/A", 42, 75);
+
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(107, 114, 128);
+    doc.text("Submitter Name:", 110, 63);
+    doc.text("Reporting Entity:", 110, 69);
+    doc.text("Review Status:", 110, 75);
+
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(31, 41, 55);
+    doc.text(String(report.submitter_name || "N/A"), 142, 63);
+    doc.text(type === "BRANCH" ? `Branch Command` : `Unit: ${report.unit_name || "N/A"} (${report.unit_type || "N/A"})`, 142, 69);
+    doc.text(String(report.status), 142, 75);
+
+    // 3. Performance Metrics Section
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.setTextColor(76, 29, 149);
+    doc.text("PERFORMANCE METRICS & ATTENDANCE DATA", 14, 88);
+
+    // Generate Key-Value Data for AutoTable
+    const metricRows: any[] = [];
+    if (type === "BRANCH") {
+      const att = report.metrics?.attendance || "N/A";
+      const inflow = report.metrics?.inflow ? `₦${(report.metrics.inflow).toLocaleString()}` : "₦0";
+      const exp = report.metrics?.expenses ? `₦${(report.metrics.expenses).toLocaleString()}` : "₦0";
+      const guests = report.metrics?.first_time_guests || "0";
+
+      metricRows.push(
+        ["Sunday Attendance", att],
+        ["Financial Inflow", inflow],
+        ["Financial Outflow", exp],
+        ["New First-Time Guests", guests],
+      );
+      if (report.metrics?.generalNote) {
+        metricRows.push(["Submitter Note", report.metrics.generalNote]);
+      }
+    } else {
+      // Loop through the unit metrics
+      Object.entries(report.metrics || {}).forEach(([key, val]) => {
+        const formattedKey = key
+          .replace(/([A-Z])/g, " $1")
+          .replace(/_/g, " ")
+          .toUpperCase();
+        metricRows.push([formattedKey, String(val)]);
+      });
+    }
+
+    autoTable(doc, {
+      startY: 92,
+      head: [["REPORT METRIC FIELD", "RECORD VALUE"]],
+      body: metricRows,
+      theme: "grid",
+      headStyles: {
+        fillColor: [76, 29, 149],
+        textColor: [255, 255, 255],
+        fontSize: 9,
+        fontStyle: "bold"
+      },
+      columnStyles: {
+        0: { cellWidth: 80, fontStyle: "bold", textColor: [107, 114, 128] },
+        1: { textColor: [31, 41, 55], cellWidth: "wrap" }
+      },
+      margin: { left: 14, right: 14 }
+    });
+
+    const lastY = (doc as any).lastAutoTable.finalY || 135;
+
+    // 4. Official Minutes & Board Comments
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.setTextColor(76, 29, 149);
+    doc.text("OFFICIAL BOARD COMMENTARY & MINUTES HISTORY", 14, lastY + 12);
+
+    doc.setDrawColor(229, 231, 235);
+    doc.line(14, lastY + 15, 196, lastY + 15);
+
+    let minutesText = "No comments or minutes have been officially logged for this report yet.";
+    if (report.minutes) {
+      minutesText = report.minutes;
+    }
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9.5);
+    doc.setTextColor(55, 65, 81); // Charcoal text
+
+    const splitMinutes = doc.splitTextToSize(minutesText, 180);
+    // Draw minutes in a premium light-gray box with left border of purple accent
+    doc.setFillColor(249, 250, 251); 
+    doc.rect(14, lastY + 18, 182, splitMinutes.length * 5 + 8, "F");
+    
+    // Left boundary line to denote premium citation
+    doc.setDrawColor(120, 81, 169);
+    doc.setLineWidth(1.5);
+    doc.line(14, lastY + 18, 14, lastY + 18 + (splitMinutes.length * 5 + 8));
+
+    doc.text(splitMinutes, 18, lastY + 24);
+
+    const minutesEndY = lastY + 18 + (splitMinutes.length * 5 + 15);
+
+    // 5. Signature Area or Certification Watermark at bottom
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(8.5);
+    doc.setTextColor(156, 163, 175);
+    doc.text("This document is a formal digital compilation of The Pistis Place Global intelligence pipeline.", 14, minutesEndY + 6);
+    doc.text("All metrics, and commentary contained herein are legally compiled and stored in secure cloud systems.", 14, minutesEndY + 11);
+
+    // Save PDF file
+    const safeUnitName = type === "UNIT" ? report.unit_name.replace(/[^a-zA-Z0-9]/g, "_") : "Branch";
+    const safeBranchName = report.branch_name.replace(/[^a-zA-Z0-9]/g, "_");
+    doc.save(`Pistis_Report_${safeBranchName}_${safeUnitName}_${report.id.substring(0, 6)}.pdf`);
+  };
+
   return (
     <div className="flex flex-col gap-6 md:gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
@@ -566,12 +731,22 @@ export function Reports() {
                   </p>
                 </div>
               </div>
-              <button 
-                onClick={() => setActiveReview(null)}
-                className="p-1 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 text-white transition-all"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={exportCurrentReportToPDF}
+                  className="px-3 py-1.5 inline-flex items-center gap-1.5 rounded-lg bg-purple-500/20 border border-purple-500/30 hover:bg-purple-500/30 text-purple-300 font-bold text-xs transition-all shadow-[0_0_15px_rgba(120,81,169,0.15)] cursor-pointer"
+                  title="Export Report to PDF for offline use"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Download PDF</span>
+                </button>
+                <button 
+                  onClick={() => setActiveReview(null)}
+                  className="p-1 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 text-white transition-all cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
             {/* Content/Metrics Grid */}

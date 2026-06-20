@@ -34,6 +34,7 @@ export function Login() {
   const [showRegPassword, setShowRegPassword] = useState(false);
   
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [generatedKey, setGeneratedKey] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [autoLoginStatus, setAutoLoginStatus] = useState<string | null>(null);
@@ -147,6 +148,22 @@ export function Login() {
           }
 
           if (profile) {
+            if (profile.status === "PENDING") {
+              await supabase.auth.signOut();
+              setErrorMsg("Your leader profile is awaiting administrative approval.");
+              setIsLoading(false);
+              setAutoLoginStatus(null);
+              return;
+            }
+
+            if (profile.status === "REJECTED") {
+              await supabase.auth.signOut();
+              setErrorMsg("Your registration has been rejected by the board.");
+              setIsLoading(false);
+              setAutoLoginStatus(null);
+              return;
+            }
+
             const pRoles = profile.role ? (profile.role.includes(',') ? profile.role.split(',') : [profile.role]) : [];
             const primaryR = (pRoles[0] || "GLOBAL_ADMIN") as Role;
             login({
@@ -557,6 +574,7 @@ export function Login() {
       randomPart += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     const registrationPassword = `PN-${randomPart}`;
+    setGeneratedKey(registrationPassword);
 
     const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
       email: regData.email,
@@ -1377,14 +1395,22 @@ export function Login() {
                   </div>
                   <h3 className="text-white font-bold text-lg mb-1.5">Request Received Successfully</h3>
                   <p className="text-xs text-lilac/80 mb-6 leading-relaxed max-w-sm">
-                    Your request to register as <strong className="text-emerald-400">{regData.role?.split(',').map(r => r.replace(/_/g, ' ')).join(' & ')}</strong> 
+                    Your request to register as <strong className="text-emerald-400">{regData.role?.split(',').map((r: any) => r.replace(/_/g, ' ')).join(' & ')}</strong> 
                     {regData.branchName && ` for the ${regData.branchName} campus`} has been safe-logged.
                     <br/><br/>
                     {selectedRoles.includes('GLOBAL_ADMIN') || selectedRoles.includes('BRANCH_ADMIN') 
                       ? "HQ leadership will examine and activate your profile shortly." 
                       : `The local administration team for ${regData.branchName} will confirm and activate your leadership account.`}
                     <br/><br/>
-                    <strong className="text-white/90">Please check your email. We have dispatched your initial secure access key.</strong>
+                    <div className="w-full max-w-sm p-4 my-4 rounded-xl border border-indigo-500/20 bg-indigo-500/5 text-center">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-[#10b981] mb-1">Direct Secure Dispatch Completed</p>
+                      <p className="text-[11px] text-white/90 font-medium leading-relaxed">
+                        For maximum safety, your personal login access credentials have been compiled and sent directly to <span className="text-emerald-400 font-bold">{regData.email}</span>.
+                      </p>
+                      <p className="text-[10px] text-zinc-400 mt-2 leading-relaxed">
+                        Please check your inbox (and spam/junk folder) for your secure credentials.
+                      </p>
+                    </div>
                   </p>
                   <button 
                     onClick={() => {

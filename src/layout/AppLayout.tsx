@@ -4,6 +4,7 @@ import { BottomNav } from "./BottomNav";
 import { NotificationBell } from "@/components/ui/NotificationBell";
 import { OnboardingTour } from "@/components/ui/OnboardingTour";
 import { PwaInstallPrompt } from "@/components/ui/PwaInstallPrompt";
+import { SupabaseSyncIndicator } from "@/components/ui/SupabaseSyncIndicator";
 import { ShieldAlert, WifiOff, RefreshCcw, KeyRound, Eye, EyeOff, Lock, CheckCircle2 } from "lucide-react";
 import { usePresence } from "@/hooks/usePresence";
 import { useAppStore } from "@/store/useAppStore";
@@ -116,31 +117,7 @@ export function AppLayout() {
                 </div>
               )}
 
-              {!isOnline && (
-                <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-full">
-                  <WifiOff className="w-3.5 h-3.5 text-amber-400" />
-                  <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider hidden sm:inline">Offline</span>
-                </div>
-              )}
-              
-              {pendingActions.length > 0 && (
-                <div className="flex items-center gap-3 bg-white/5 border border-white/10 px-3 py-1.5 rounded-full">
-                  <div className="flex items-center gap-1.5 text-lilac">
-                    <span className="w-2 h-2 rounded-full bg-amber-400" />
-                    <span className="text-[10px] font-bold uppercase tracking-wider">{pendingActions.length} Pending</span>
-                  </div>
-                  {isOnline && (
-                    <button 
-                      onClick={handleSync}
-                      disabled={isSyncing}
-                      className="text-[10px] bg-emerald-500 hover:bg-emerald-400 text-black px-2 py-0.5 rounded font-bold transition-colors flex items-center gap-1 disabled:opacity-50"
-                    >
-                      <RefreshCcw className={`w-3 h-3 ${isSyncing ? 'animate-spin' : ''}`} />
-                      {isSyncing ? "Syncing..." : "Sync Now"}
-                    </button>
-                  )}
-                </div>
-              )}
+              <SupabaseSyncIndicator />
               
               <div id="topbar-actions" className="flex items-center gap-2 mr-2"></div>
               <NotificationBell />
