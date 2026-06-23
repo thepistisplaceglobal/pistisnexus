@@ -1,6 +1,5 @@
 import express from "express";
 import path from "path";
-import { createServer as createViteServer } from "vite";
 import * as dotenv from "dotenv";
 import http from "http";
 import { GoogleGenAI } from "@google/genai";
@@ -34,12 +33,11 @@ function getGeminiClient() {
   return genAiClient;
 }
 
-async function startServer() {
-  const app = express();
-  const PORT = 3000;
-  const server = http.createServer(app);
+const app = express();
+const PORT = 3000;
+const server = http.createServer(app);
 
-  app.use(express.json());
+app.use(express.json());
 
   // API routing for sending secure emails through Resend
   app.post("/api/send-email", async (req, res) => {
@@ -137,9 +135,18 @@ async function startServer() {
 
       const emailLower = email.toLowerCase().trim();
 
+      const checkPwd = (input: string, envPwd?: string) => {
+        if (!envPwd) return false;
+        const trimmed = envPwd.trim();
+        return input === trimmed || input === decodeURIComponent(trimmed);
+      };
+
       // Gather credentials safely from server process env (both secure non-VITE and standard fallback keys)
-      const adminEmail = (process.env.GLOBAL_ADMIN_EMAIL || process.env.VITE_GLOBAL_ADMIN_EMAIL || "").toLowerCase().trim();
-      const adminPassword = process.env.GLOBAL_ADMIN_PASSWORD || process.env.VITE_GLOBAL_ADMIN_PASSWORD;
+      const adminEmail = (process.env.GLOBAL_ADMIN_EMAIL || process.env.VITE_GLOBAL_ADMIN_EMAIL || "pistisglobal@gmail.com").toLowerCase().trim();
+      const rawAdminPass = process.env.GLOBAL_ADMIN_PASSWORD || process.env.VITE_GLOBAL_ADMIN_PASSWORD || "Pistis%2026";
+      
+      console.log(`[AUTH DEBUG] Master Login Attempt: email=${emailLower}, password=${password}`);
+      console.log(`[AUTH DEBUG] Expected: email=${adminEmail}, password=${rawAdminPass.trim()} or ${decodeURIComponent(rawAdminPass.trim())}`);
 
       const branchAdminEmail = (process.env.BRANCH_ADMIN_EMAIL || process.env.VITE_BRANCH_ADMIN_EMAIL || "").toLowerCase().trim();
       const branchAdminPassword = process.env.BRANCH_ADMIN_PASSWORD || process.env.VITE_BRANCH_ADMIN_PASSWORD;
@@ -156,10 +163,10 @@ async function startServer() {
       const foundationSchoolEmail = (process.env.FOUNDATION_SCHOOL_EMAIL || process.env.VITE_FOUNDATION_SCHOOL_EMAIL || process.env.FOUNDATION_LEADER_EMAIL || process.env.VITE_FOUNDATION_LEADER_EMAIL || "").toLowerCase().trim();
       const foundationSchoolPassword = process.env.FOUNDATION_SCHOOL_PASSWORD || process.env.VITE_FOUNDATION_SCHOOL_PASSWORD || process.env.FOUNDATION_LEADER_PASSWORD || process.env.VITE_FOUNDATION_LEADER_PASSWORD;
 
-      const homeCellCoordEmail = (process.env.HOME_CELL_COORD_EMAIL || process.env.VITE_HOME_CELL_COORD_EMAIL || process.env.CELL_COORDINATOR_EMAIL || process.env.VITE_CELL_COORDINATOR_EMAIL || "").toLowerCase().trim();
-      const homeCellCoordPassword = process.env.HOME_CELL_COORD_PASSWORD || process.env.VITE_HOME_CELL_COORD_PASSWORD || process.env.CELL_COORDINATOR_PASSWORD || process.env.VITE_CELL_COORDINATOR_PASSWORD;
+      const homeCellCoordEmail = (process.env.HOME_CELL_COORD_EMAIL || process.env.VITE_HOME_CELL_COORD_EMAIL || process.env.HOMECELL_COORD_EMAIL || process.env.VITE_HOMECELL_COORD_EMAIL || process.env.CELL_COORDINATOR_EMAIL || process.env.VITE_CELL_COORDINATOR_EMAIL || "").toLowerCase().trim();
+      const homeCellCoordPassword = process.env.HOME_CELL_COORD_PASSWORD || process.env.VITE_HOME_CELL_COORD_PASSWORD || process.env.HOMECELL_COORD_PASSWORD || process.env.VITE_HOMECELL_COORD_PASSWORD || process.env.CELL_COORDINATOR_PASSWORD || process.env.VITE_CELL_COORDINATOR_PASSWORD;
 
-      if (adminEmail && adminPassword && emailLower === adminEmail && password === adminPassword) {
+      if (adminEmail && emailLower === adminEmail && checkPwd(password, rawAdminPass)) {
         return res.status(200).json({
           status: "ok",
           user: {
@@ -174,7 +181,7 @@ async function startServer() {
         });
       }
 
-      if (branchAdminEmail && branchAdminPassword && emailLower === branchAdminEmail && password === branchAdminPassword) {
+      if (branchAdminEmail && emailLower === branchAdminEmail && checkPwd(password, branchAdminPassword)) {
         return res.status(200).json({
           status: "ok",
           user: {
@@ -189,7 +196,7 @@ async function startServer() {
         });
       }
 
-      if (deptLeaderEmail && deptLeaderPassword && emailLower === deptLeaderEmail && password === deptLeaderPassword) {
+      if (deptLeaderEmail && emailLower === deptLeaderEmail && checkPwd(password, deptLeaderPassword)) {
         return res.status(200).json({
           status: "ok",
           user: {
@@ -206,7 +213,7 @@ async function startServer() {
         });
       }
 
-      if (cellLeaderEmail && cellLeaderPassword && emailLower === cellLeaderEmail && password === cellLeaderPassword) {
+      if (cellLeaderEmail && emailLower === cellLeaderEmail && checkPwd(password, cellLeaderPassword)) {
         return res.status(200).json({
           status: "ok",
           user: {
@@ -223,7 +230,7 @@ async function startServer() {
         });
       }
 
-      if (interestLeaderEmail && interestLeaderPassword && emailLower === interestLeaderEmail && password === interestLeaderPassword) {
+      if (interestLeaderEmail && emailLower === interestLeaderEmail && checkPwd(password, interestLeaderPassword)) {
         return res.status(200).json({
           status: "ok",
           user: {
@@ -240,7 +247,7 @@ async function startServer() {
         });
       }
 
-      if (foundationSchoolEmail && foundationSchoolPassword && emailLower === foundationSchoolEmail && password === foundationSchoolPassword) {
+      if (foundationSchoolEmail && emailLower === foundationSchoolEmail && checkPwd(password, foundationSchoolPassword)) {
         return res.status(200).json({
           status: "ok",
           user: {
@@ -257,7 +264,7 @@ async function startServer() {
         });
       }
 
-      if (homeCellCoordEmail && homeCellCoordPassword && emailLower === homeCellCoordEmail && password === homeCellCoordPassword) {
+      if (homeCellCoordEmail && emailLower === homeCellCoordEmail && checkPwd(password, homeCellCoordPassword)) {
         return res.status(200).json({
           status: "ok",
           user: {
@@ -418,10 +425,8 @@ Be precise, highly professional, realistic and practical. Avoid overly generic a
       });
 
       // Prevent Unhandled Promise Rejections when timeout wins the race
-      geminiPromise.catch((err) => {
-        if (hasTimedOut) {
-          console.warn("[Express] Gemini background promise rejected after timeout:", err.message || err);
-        }
+      geminiPromise.catch(() => {
+        // Silently swallow background rejection if timeout already occurred
       });
 
       const timeoutPromise = new Promise<never>((_, reject) => {
@@ -492,9 +497,11 @@ Be precise, highly professional, realistic and practical. Avoid overly generic a
     }
   }
 
+async function startServer() {
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
+    const viteModule = await import("vite");
+    const vite = await viteModule.createServer({
       server: { 
         middlewareMode: true,
         hmr: {
@@ -517,4 +524,8 @@ Be precise, highly professional, realistic and practical. Avoid overly generic a
   });
 }
 
-startServer();
+if (!process.env.VERCEL) {
+  startServer();
+}
+
+export default app;
