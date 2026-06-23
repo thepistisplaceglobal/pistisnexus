@@ -20,6 +20,11 @@ export function EmailDispatchLogsWidget() {
   const [testing, setTesting] = useState(false);
   const [testSuccess, setTestSuccess] = useState<string | null>(null);
 
+  // New Diagnostics State
+  const [testType, setTestType] = useState<"regular" | "diagnostics">("regular");
+  const [diagnosticLogs, setDiagnosticLogs] = useState<string[]>([]);
+  const [diagnosticResult, setDiagnosticResult] = useState<any | null>(null);
+
   const fetchLogs = async () => {
     setLoading(true);
     const data = await EmailService.getEmailDispatchLogs();
@@ -55,20 +60,34 @@ export function EmailDispatchLogsWidget() {
     if (!testEmail || !testName) return;
     setTesting(true);
     setTestSuccess(null);
+    setDiagnosticResult(null);
+    setDiagnosticLogs([]);
+
     try {
-      const response = await EmailService.sendApprovalEmail(
-        testEmail,
-        testName,
-        "DEPT_LEADER",
-        "Uyo (HQ)"
-      );
-      if (response) {
-        setTestSuccess("Test Approval Welcome Mail dispatched successfully!");
-        setTestEmail("");
-        setTestName("");
-        await fetchLogs();
+      if (testType === "diagnostics") {
+        const diag = await EmailService.runEmailDiagnostics(testEmail, testName);
+        setDiagnosticResult(diag);
+        setDiagnosticLogs(diag.stepLogs);
+        if (diag.success) {
+          setTestSuccess("System Diagnostics completed: Email Accepted by Resend!");
+        } else {
+          setTestSuccess("System Diagnostics finished with flags. Check telemetry below.");
+        }
       } else {
-        setTestSuccess("Failed to dispatch email helper. Check credentials.");
+        const response = await EmailService.sendApprovalEmail(
+          testEmail,
+          testName,
+          "DEPT_LEADER",
+          "Uyo (HQ)"
+        );
+        if (response) {
+          setTestSuccess("Test Approval Welcome Mail dispatched successfully!");
+          setTestEmail("");
+          setTestName("");
+          await fetchLogs();
+        } else {
+          setTestSuccess("Failed to dispatch email helper. Check credentials.");
+        }
       }
     } catch (err: any) {
       setTestSuccess(`Error: ${err?.message || err}`);
@@ -176,10 +195,47 @@ export function EmailDispatchLogsWidget() {
           
           <GlassCard className="p-5 bg-gradient-to-b from-[#110126]/60 to-[#0A0118]/90">
             <h3 className="font-bold text-white mb-2 flex items-center gap-2 text-sm">
-              <Send className="w-4 h-4 text-purple-400" /> Direct Verification Trigger
+              <Send className="w-4 h-4 text-purple-400" /> Executive Sender Testing
             </h3>
+
+            {/* Mode selection tabs */}
+            <div className="flex border border-white/10 rounded-xl p-1 bg-black/40 mb-4 gap-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setTestType("regular");
+                  setDiagnosticResult(null);
+                  setTestSuccess(null);
+                }}
+                className={`flex-1 text-[11px] font-bold py-1.5 px-3 rounded-lg transition-all cursor-pointer ${
+                  testType === "regular"
+                    ? "bg-royal-purple text-white shadow-sm"
+                    : "text-lilac/70 hover:text-white hover:bg-white/5"
+                }`}
+              >
+                Verification Mail
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setTestType("diagnostics");
+                  setDiagnosticResult(null);
+                  setTestSuccess(null);
+                }}
+                className={`flex-1 text-[11px] font-bold py-1.5 px-3 rounded-lg transition-all cursor-pointer ${
+                  testType === "diagnostics"
+                    ? "bg-indigo-600 text-white shadow-sm"
+                    : "text-lilac/70 hover:text-white hover:bg-white/5"
+                }`}
+              >
+                Deep Diagnostics Scan
+              </button>
+            </div>
+
             <p className="text-xs text-lavender/70 leading-relaxed mb-4">
-              Instantly compile and send visual transactional mail to any verification partner. Validates layouts immediately.
+              {testType === "regular"
+                ? "Instantly compile and send visual transactional mail to any verification partner. Validates layouts immediately."
+                : "Runs an end-to-end telemetry scan of our Resend API proxy to verify key permissions, CORS bypass, and sandbox domain destination policies."}
             </p>
 
             <form onSubmit={handleSendTest} className="space-y-3.5">
@@ -208,10 +264,10 @@ export function EmailDispatchLogsWidget() {
               </div>
 
               {testSuccess && (
-                <div className={`p-3 rounded-lg text-xs font-medium leading-relaxed ${
-                  testSuccess.includes("Failed") || testSuccess.includes("Error")
-                    ? "bg-rose-950/20 border border-rose-950/40 text-rose-300"
-                    : "bg-emerald-950/20 border border-emerald-950/40 text-emerald-300"
+                <div className={`p-4 rounded-xl text-xs font-semibold leading-relaxed ${
+                  testSuccess.includes("failed") || testSuccess.includes("Error") || testSuccess.includes("flags")
+                    ? "bg-rose-950/20 border border-rose-900/35 text-rose-300"
+                    : "bg-emerald-950/20 border border-emerald-900/35 text-emerald-300"
                 }`}>
                   {testSuccess}
                 </div>
@@ -220,10 +276,61 @@ export function EmailDispatchLogsWidget() {
               <button
                 type="submit"
                 disabled={testing}
-                className="w-full bg-royal-purple hover:bg-royal-purple/85 active:bg-royal-purple/75 disabled:opacity-50 text-white font-bold py-2 rounded-xl text-xs transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                className={`w-full font-bold py-2 rounded-xl text-xs transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer ${
+                  testType === "diagnostics" 
+                    ? "bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white" 
+                    : "bg-royal-purple hover:bg-royal-purple/85 active:bg-royal-purple/75 text-white"
+                } disabled:opacity-50`}
               >
-                {testing ? "Dispatching..." : "Send Branded Approvals Mail"}
+                {testing 
+                  ? (testType === "diagnostics" ? "Running Telemetry Scan..." : "Dispatching...") 
+                  : (testType === "diagnostics" ? "Start Deep Delivery Scan" : "Send Branded Approvals Mail")}
               </button>
+
+              {testType === "diagnostics" && diagnosticResult && (
+                <div className="mt-4 border-t border-white/10 pt-4 space-y-3.5">
+                  <div className={`p-4 rounded-xl border ${
+                    diagnosticResult.success 
+                      ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-300" 
+                      : "bg-amber-500/10 border-amber-500/20 text-amber-300"
+                  }`}>
+                    <div className="flex items-start gap-2.5">
+                      <div className="mt-0.5 shrink-0 bg-white/5 rounded p-1">
+                        <ShieldCheck className={`w-4 h-4 ${diagnosticResult.success ? "text-emerald-400" : "text-amber-400"}`} />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-xs uppercase tracking-wider text-white">Diagnostics Verdict</h4>
+                        <p className="text-xs text-lavender/90 font-mono mt-1 font-bold">
+                          HTTP {diagnosticResult.httpStatus || "N/A"} - {diagnosticResult.success ? "ACCEPTED" : "REJECTED"}
+                        </p>
+                        <p className="text-xs leading-relaxed text-slate-300 mt-2 font-semibold">
+                          <strong>Resolution Suggestion:</strong> {diagnosticResult.recommendation}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Step-by-step logs */}
+                  <div className="bg-black/50 border border-white/5 rounded-xl p-3.5">
+                    <span className="text-[10px] uppercase font-mono tracking-wider text-indigo-400 font-bold block mb-2">Deep Telemetry Stream</span>
+                    <div className="space-y-1.5 font-mono text-[10px] leading-normal max-h-[160px] overflow-y-auto text-lilac/90 custom-scrollbar">
+                      {diagnosticLogs.map((log, index) => (
+                        <div key={index} className="border-l-2 border-indigo-500/30 pl-2">
+                          {log}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Exact compiled payload sent */}
+                  <div className="bg-black/40 border border-white/5 rounded-xl p-3.5 text-xs">
+                    <span className="text-[10px] uppercase font-mono tracking-wider text-indigo-400 font-bold block mb-1.5">JSON Payload Sent (Excluding Key)</span>
+                    <pre className="font-mono text-[10px] text-white/70 p-2 bg-black/40 rounded overflow-x-auto">
+                      {JSON.stringify(diagnosticResult.payloadDetails, null, 2)}
+                    </pre>
+                  </div>
+                </div>
+              )}
             </form>
           </GlassCard>
         </div>

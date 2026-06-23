@@ -194,15 +194,7 @@ export const EmailService = {
       <p>Thank you for submitting your registration request to join the Pistis Nexus registry.</p>
       <p>Your request to be registered as a <strong>${readableRole}</strong> for the <strong>${branchName}</strong> expression has been successfully received and is currently under review by the central administration.</p>
       
-      <div class="highlight-box">
-        <div class="highlight-title">Your Generated Entry Key Card</div>
-        <p class="highlight-content" style="margin-bottom: 0; font-size: 14px; line-height: 1.6;">
-          <strong>Your Temporary Password / Key:</strong> <span style="font-family: monospace; font-size: 15px; font-weight: bold; color: #FFE4A0; background: rgba(255, 255, 255, 0.08); padding: 2px 8px; border-radius: 4px; border: 1px solid rgba(255, 228, 160, 0.15);">${loginKey}</span>
-        </p>
-      </div>
-      
-      <p><strong>IMPORTANT:</strong> Please keep this key secure. You will need this password to log into the portal once the administration securely audits and approves your profile.</p>
-      <p style="padding: 10px; background: rgba(255, 228, 160, 0.1); border-left: 3px solid #FFE4A0; border-radius: 0 4px 4px 0;"><strong>ACTION REQUIRED:</strong> Please notify your <strong>${role === 'BRANCH_ADMIN' ? 'Global Administrator' : 'Branch Administrator'}</strong> to approve your account. Once approved, you will be able to log in with this password and access your dashboard.</p>
+      <p style="padding: 10px; background: rgba(255, 228, 160, 0.1); border-left: 3px solid #FFE4A0; border-radius: 0 4px 4px 0;"><strong>ACTION REQUIRED:</strong> You have successfully created your password. Please notify your <strong>${role === 'BRANCH_ADMIN' ? 'Global Administrator' : 'Branch Administrator'}</strong> to approve your account. Once approved, you will be able to log in with your credentials and access your dashboard.</p>
       <p>You will receive another notification (with an instant login link) as soon as your access is approved.</p>
     `;
 
@@ -222,6 +214,89 @@ export const EmailService = {
       bodyHtml,
       templateName: "SIGNUP_CONFIRMATION"
     });
+  },
+
+  /**
+   * Identifies and notifies the relevant supervisor admin(s) of a pending user registration.
+   */
+  async notifyAdminsOfRegistration(applicantEmail: string, applicantName: string, role: string, branchName: string): Promise<void> {
+    const readableRole = role.replace(/_/g, " ");
+    const subject = `⚠️ Action Required: Pending Leader Approval [${applicantName}]`;
+    const preheader = `A new user registration for ${applicantName} (${readableRole}) is waiting for your administrative authorization.`;
+    
+    let adminsToNotify: { email: string; full_name: string }[] = [];
+    
+    try {
+      if (role === "BRANCH_ADMIN" || role === "GLOBAL_ADMIN") {
+        // Global Admins approve Branch Admins and other Global Admins
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("email, full_name")
+          .eq("role", "GLOBAL_ADMIN");
+        
+        if (!error && data && data.length > 0) {
+          adminsToNotify = data;
+        }
+      } else {
+        // Branch Admins approve department and group leaders inside their branch
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("email, full_name")
+          .eq("role", "BRANCH_ADMIN")
+          .eq("branch_name", branchName);
+          
+        if (!error && data && data.length > 0) {
+          adminsToNotify = data;
+        }
+      }
+    } catch (err) {
+      console.warn("Failed to query target admins to notify:", err);
+    }
+
+    // High reliability fallback: notify the creator/global administrator contact if no matching profiles are found in dynamic state yet
+    if (adminsToNotify.length === 0) {
+      adminsToNotify = [
+        { email: "globaladmin@thepistisplaceglobal.org", full_name: "Central Registrar Office" }
+      ];
+    }
+
+    const contentHtml = `
+      <p>This is an automated operational alert originating from the central security register of Pistis Place Global.</p>
+      <p>A new applicant has completed registration and is currently queued under <strong>Pending Approval</strong> awaiting your audit clearance:</p>
+      
+      <div class="highlight-box">
+        <div class="highlight-title">Applicant Credentials Summary</div>
+        <p class="highlight-content" style="margin-bottom: 0; font-size: 14px; line-height: 1.6;">
+          <strong>Applicant Name:</strong> ${applicantName}<br>
+          <strong>Email Address:</strong> ${applicantEmail}<br>
+          <strong>Clearance Requested:</strong> ${readableRole}<br>
+          <strong>Assigned City Expression:</strong> ${branchName}<br>
+          <strong>Status:</strong> Pending Verification
+        </p>
+      </div>
+
+      <p><strong>INSTRUCTIONS TO ADMIN:</strong> To authorize or decline this clearance, please login to the administrative area, navigate to the <strong>Directory</strong> or <strong>Approvals</strong> page, and review their details. Once cleared, their temporary login key is instantly validated and a secure launch email is fired to their inbox.</p>
+    `;
+
+    for (const admin of adminsToNotify) {
+      const bodyHtml = this.generateBrandedHTML({
+        recipientName: admin.full_name,
+        title: "Registration Approval Required",
+        preheader,
+        contentHtml,
+        ctaText: "Review Approvals",
+        ctaHref: `${window.location.origin}/login`
+      });
+
+      // Fire the email
+      await this.dispatchEmail({
+        toEmail: admin.email,
+        recipientName: admin.full_name,
+        subject,
+        bodyHtml,
+        templateName: "REGISTRATION_AUTHORIZED_ALERT"
+      });
+    }
   },
 
   /**
@@ -355,6 +430,7 @@ export const EmailService = {
     let status = "DELIVERED";
     
     const resendFrom = import.meta.env.VITE_RESEND_FROM_EMAIL || localStorage.getItem("VITE_RESEND_FROM_EMAIL") || "noreply@thepistisplaceglobal.org";
+    const resendApiKey = localStorage.getItem("VITE_RESEND_API_KEY") || undefined;
 
     try {
       console.log(`[EmailService] Dispatching real email through backend proxy to: ${payload.toEmail}`);
@@ -369,7 +445,8 @@ export const EmailService = {
           toEmail: payload.toEmail,
           subject: payload.subject,
           bodyHtml: payload.bodyHtml,
-          resendFrom: resendFrom
+          resendFrom: resendFrom,
+          resendApiKey: resendApiKey
         })
       });
 
@@ -445,6 +522,128 @@ export const EmailService = {
     } catch (err) {
       // Return exclusively from localStorage if db query fails
       return JSON.parse(localStorage.getItem("local_email_dispatches") || "[]");
+    }
+  },
+
+  /**
+   * Runs a deep diagnostic scan of the email sending pipeline.
+   * Compiles the payload, posts to the backend, captures full telemetry,
+   * and interprets the return code to explain exactly why an email did or did not land in the inbox.
+   */
+  async runEmailDiagnostics(testEmail: string, testName: string): Promise<{
+    success: boolean;
+    stepLogs: string[];
+    payloadDetails: any;
+    httpStatus?: number;
+    responseDetails?: any;
+    recommendation?: string;
+  }> {
+    const stepLogs: string[] = [];
+    stepLogs.push(`Starting Email Diagnostics at ${new Date().toISOString()}`);
+    stepLogs.push(`Target Recipient Address: ${testEmail}`);
+    stepLogs.push(`Target Recipient Name: ${testName}`);
+
+    const resendFrom = import.meta.env.VITE_RESEND_FROM_EMAIL || localStorage.getItem("VITE_RESEND_FROM_EMAIL") || "noreply@thepistisplaceglobal.org";
+    const resendApiKey = localStorage.getItem("VITE_RESEND_API_KEY") || undefined;
+    stepLogs.push(`Configured Sender Address (From): ${resendFrom}`);
+
+    // Check if the recipient email matches the sandbox restriction if we suspect onboarding@resend.dev fallback
+    const isOwnerEmail = testEmail.toLowerCase().trim() === "amb.japheth@gmail.com";
+    stepLogs.push(`Is Recipient Sandbox-Owner (amb.japheth@gmail.com)? ${isOwnerEmail ? "YES" : "NO"}`);
+
+    const subject = "Pistis Nexus - Diagnostic Engine Delivery Check";
+    const bodyHtml = this.generateBrandedHTML({
+      recipientName: testName,
+      title: "System Diagnostic Test",
+      preheader: "Testing outbound email deliverability",
+      contentHtml: `<p>This is an automated real-time diagnostics communication dispatched by your system administrator console. Excellent! The Pistis templates are parsing and translating HTML flawlessly.</p>`,
+      ctaText: "Platform Dashboard"
+    });
+
+    const payloadDetails = {
+      from: resendFrom,
+      to: testEmail,
+      subject: subject,
+      htmlLength: bodyHtml.length
+    };
+
+    stepLogs.push("Compiled payload details successfully.");
+    stepLogs.push(`Posting test payload to express API proxy '/api/send-email'...`);
+
+    try {
+      const response = await fetch("/api/send-email", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          toEmail: testEmail,
+          subject: subject,
+          bodyHtml: bodyHtml,
+          resendFrom: resendFrom,
+          resendApiKey: resendApiKey
+        })
+      });
+
+      stepLogs.push(`Proxy server returned HTTP status: ${response.status} (${response.statusText})`);
+
+      const resBody = await response.json().catch(() => ({}));
+      stepLogs.push(`Received response payload from backend proxy: ${JSON.stringify(resBody)}`);
+
+      let recommendation = "";
+      if (response.ok) {
+        stepLogs.push("SUCCESS: API proxy successfully contacted and Resend accepted the email.");
+        if (resendFrom === "noreply@thepistisplaceglobal.org" || !resendFrom.includes("@")) {
+          recommendation = "Resend accepted the email! If you used a custom domain like @thepistisplaceglobal.org, verify that its SPF/DKIM DNS records are configured in your Resend Dashboard, otherwise emails could be silently routed to the recipient's Spam/Junk folder.";
+        } else {
+          recommendation = "Delivery signal looks positive! Check both your primary Inbox and the Junk/Spam folder. Ensure any custom Domain is fully active in Resend.";
+        }
+        return {
+          success: true,
+          stepLogs,
+          payloadDetails,
+          httpStatus: response.status,
+          responseDetails: resBody,
+          recommendation
+        };
+      } else {
+        stepLogs.push(`FAILURE: Resend API or backend server rejected the payload.`);
+        
+        // Let's diagnose based on status & body details
+        const msg = (resBody.message || "").toLowerCase();
+        const detailsStr = JSON.stringify(resBody.details || "").toLowerCase();
+        
+        if (response.status === 500 && msg.includes("not configured on server")) {
+          recommendation = "RESTRICTION: The 'RESEND_API_KEY' environment variable is missing on the server. Please define this key in your workspace configurations or check your .env/env.example state.";
+        } else if (response.status === 403 || detailsStr.includes("restricted") || detailsStr.includes("onboarding") || detailsStr.includes("verify") || detailsStr.includes("validation")) {
+          if (!isOwnerEmail) {
+            recommendation = "RESTRICTION: You are on the free Resend plan (using onboarding@resend.dev or unverified domain) and the recipient is NOT your registered sandbox owner 'amb.japheth@gmail.com'. Under Resend's free/sandbox tier, you can ONLY send test emails to your registered system email (amb.japheth@gmail.com). Please test using that email address or verify your custom domain.";
+          } else {
+            recommendation = "VERIFICATION NEEDED: The Resend API key is valid but domain ownership is not verified yet. Please set up DNS verification for your domain in Resend or check your credentials.";
+          }
+        } else if (response.status === 401 || detailsStr.includes("unauthorized") || detailsStr.includes("apikey") || detailsStr.includes("invalid")) {
+          recommendation = "KEY ERROR: The RESEND_API_KEY being utilized appears to be invalid or deactivated by Resend. Verify the exact key starting with 're_' inside your Environment variables or Local SMTP controls.";
+        } else {
+          recommendation = "GENERIC ERROR: Ensure your Resend domain alignment is set up. Try verifying DNS records on the Resend dashboard or use your registered sandbox owner email (amb.japheth@gmail.com) for tests.";
+        }
+
+        return {
+          success: false,
+          stepLogs,
+          payloadDetails,
+          httpStatus: response.status,
+          responseDetails: resBody,
+          recommendation
+        };
+      }
+    } catch (err: any) {
+      stepLogs.push(`EXCEPTION: Network/Express connection failed while talking to '/api/send-email': ${err?.message || err}`);
+      return {
+        success: false,
+        stepLogs,
+        payloadDetails,
+        recommendation: "CONNECTION REFUSED: Local proxy route was offline or timed out. Force rebuild or restart the backend dev server in AI Studio Settings.",
+      };
     }
   }
 };

@@ -3,6 +3,7 @@ import { InsightCard } from "@/components/ui/InsightCard";
 import { Filter, Users, Radio, Music, Wrench, HandHeart, Users2, Globe, Heart, Baby, Users as UsersIcon, Shield, Briefcase, FileSearch, Drama, Sparkles } from "lucide-react";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { ReportingWidget } from "@/components/ui/ReportingWidget";
+import { UnitMembersManager } from "@/components/UnitMembersManager";
 
 const officialDepartments = [
   { 
@@ -173,6 +174,10 @@ export function Departments() {
             content="Choir rehearsal attendance dipped last week. Suggest syncing with Choir Admin to review scheduling."
           />
         </div>
+      </section>
+
+      <section className="w-full">
+        <UnitMembersManager unitType="department" />
       </section>
 
     </div>

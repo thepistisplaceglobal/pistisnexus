@@ -12,7 +12,7 @@ export default defineConfig(() => {
       VitePWA({
         registerType: 'autoUpdate',
         devOptions: {
-          enabled: true
+          enabled: false
         },
         manifest: {
           name: 'Pistis Nexus',
@@ -23,31 +23,13 @@ export default defineConfig(() => {
           display: 'standalone',
           start_url: '/',
           icons: [
-            {
-              src: '/favicon.png',
-              sizes: '192x192',
-              type: 'image/png'
-            },
-            {
-              src: '/favicon.png',
-              sizes: '512x512',
-              type: 'image/png'
-            },
-            {
-              src: '/favicon.png',
-              sizes: '512x512',
-              type: 'image/png',
-              purpose: 'any'
-            },
-            {
-              src: '/favicon.png',
-              sizes: '512x512',
-              type: 'image/png',
-              purpose: 'maskable'
-            }
+            { src: '/favicon.png', sizes: '192x192', type: 'image/png' },
+            { src: '/favicon.png', sizes: '512x512', type: 'image/png' },
+            { src: '/favicon.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
           ]
         },
         workbox: {
+          maximumFileSizeToCacheInBytes: 15000000,
           globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
           runtimeCaching: [
             {
@@ -55,13 +37,8 @@ export default defineConfig(() => {
               handler: 'NetworkFirst',
               options: {
                 cacheName: 'supabase-api-cache',
-                expiration: {
-                  maxEntries: 100,
-                  maxAgeSeconds: 60 * 60 * 24 * 7 // 7 days
-                },
-                cacheableResponse: {
-                  statuses: [0, 200]
-                }
+                expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 * 7 },
+                cacheableResponse: { statuses: [0, 200] }
               }
             }
           ]
@@ -73,16 +50,6 @@ export default defineConfig(() => {
         '@': path.resolve(__dirname, './src'),
       },
     },
-    server: {
-      // HMR is disabled in AI Studio via DISABLE_HMR env var.
-      // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
-      hmr: process.env.DISABLE_HMR !== 'true' ? {
-        protocol: 'wss',
-        clientPort: 443,
-      } : false,
-      // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
-      watch: process.env.DISABLE_HMR === 'true' ? null : {},
-    },
     build: {
       chunkSizeWarningLimit: 1500,
       rollupOptions: {
@@ -91,7 +58,7 @@ export default defineConfig(() => {
             if (id.includes('node_modules/recharts')) return 'recharts';
             if (id.includes('node_modules/lucide-react')) return 'lucide';
             if (id.includes('node_modules/motion')) return 'motion';
-            if (id.includes('node_modules/react') || id.includes('node_modules/react-dom') || id.includes('node_modules/react-router-dom')) return 'react';
+            if (id.includes('node_modules/react')) return 'react';
             if (id.includes('node_modules/@supabase')) return 'supabase';
           }
         }

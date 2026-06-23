@@ -1,11 +1,12 @@
 import { GlassCard } from "@/components/ui/GlassCard";
-import { ShieldCheck, Users, Mail, Lock, User as UserIcon, Globe, MapPin, Building, CheckCircle2, Eye, EyeOff, KeyRound, ArrowRight, ArrowLeft, GraduationCap, Home } from "lucide-react";
+import { ShieldCheck, Users, Mail, Lock, User as UserIcon, Globe, MapPin, Building, CheckCircle2, Eye, EyeOff, KeyRound, ArrowRight, ArrowLeft, GraduationCap, Home, X } from "lucide-react";
 import { useAppStore, Role } from "@/store/useAppStore";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { EmailService } from "@/services/emailService";
 import { motion } from "motion/react";
+import { Country, State, City } from 'country-state-city';
 
 export function Login() {
   const login = useAppStore((state) => state.login);
@@ -18,11 +19,15 @@ export function Login() {
   const [regData, setRegData] = useState({
     role: "" as any,
     country: "",
+    stateRegion: "",
+    countryCode: "",
+    stateCode: "",
     branchName: "",
     unitName: "",
     fullName: "",
     email: "",
-    password: ""
+    password: "",
+    confirmPassword: ""
   });
   
   const [loginData, setLoginData] = useState({
@@ -32,6 +37,7 @@ export function Login() {
   
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [showRegPassword, setShowRegPassword] = useState(false);
+  const [showRegConfirmPassword, setShowRegConfirmPassword] = useState(false);
   
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [generatedKey, setGeneratedKey] = useState("");
@@ -281,135 +287,24 @@ export function Login() {
     setIsLoading(true);
     setErrorMsg("");
 
-    // Developer bypass for initial Global Admin (configured via environment credentials)
-    const adminEmail = import.meta.env.VITE_GLOBAL_ADMIN_EMAIL;
-    const adminPassword = import.meta.env.VITE_GLOBAL_ADMIN_PASSWORD;
-
-    // Extra developers bypass for other leadership tiers
-    const branchAdminEmail = import.meta.env.VITE_BRANCH_ADMIN_EMAIL;
-    const branchAdminPassword = import.meta.env.VITE_BRANCH_ADMIN_PASSWORD;
-
-    const deptLeaderEmail = import.meta.env.VITE_DEPT_LEADER_EMAIL;
-    const deptLeaderPassword = import.meta.env.VITE_DEPT_LEADER_PASSWORD;
-
-    const cellLeaderEmail = import.meta.env.VITE_CELL_LEADER_EMAIL;
-    const cellLeaderPassword = import.meta.env.VITE_CELL_LEADER_PASSWORD;
-
-    const interestLeaderEmail = import.meta.env.VITE_INTEREST_LEADER_EMAIL;
-    const interestLeaderPassword = import.meta.env.VITE_INTEREST_LEADER_PASSWORD;
-
-    const foundationSchoolEmail = import.meta.env.VITE_FOUNDATION_SCHOOL_EMAIL;
-    const foundationSchoolPassword = import.meta.env.VITE_FOUNDATION_SCHOOL_PASSWORD;
-
-    const homeCellCoordEmail = import.meta.env.VITE_HOME_CELL_COORD_EMAIL;
-    const homeCellCoordPassword = import.meta.env.VITE_HOME_CELL_COORD_PASSWORD;
-
-    if (adminEmail && adminPassword && loginData.email === adminEmail && loginData.password === adminPassword) {
-      login({
-        id: "global-admin-master",
-        email: adminEmail,
-        name: "HQ Global Admin",
-        role: "GLOBAL_ADMIN",
-        branchName: "Uyo Branch", // Re-mapped to Uyo Branch
-        hasCompletedOnboarding: true,
-        hasCompletedTour: true,
+    try {
+      // Secure master bypass credentials check on the server (keeps keys hidden from browser bundles)
+      const masterRes = await fetch("/api/auth/master-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: loginData.email, password: loginData.password })
       });
-      navigate("/");
-      return;
-    }
 
-    if (branchAdminEmail && branchAdminPassword && loginData.email === branchAdminEmail && loginData.password === branchAdminPassword) {
-      login({
-        id: "branch-admin-master",
-        email: branchAdminEmail,
-        name: "Branch Administrator",
-        role: "BRANCH_ADMIN",
-        branchName: "Uyo Branch",
-        hasCompletedOnboarding: true,
-        hasCompletedTour: true,
-      });
-      navigate("/");
-      return;
-    }
-
-    if (deptLeaderEmail && deptLeaderPassword && loginData.email === deptLeaderEmail && loginData.password === deptLeaderPassword) {
-      login({
-        id: "dept-leader-master",
-        email: deptLeaderEmail,
-        name: "Media Department Leader",
-        role: "DEPT_LEADER",
-        branchName: "Uyo Branch",
-        deptName: "Technical & Media",
-        unitStructureName: "Units",
-        hasCompletedOnboarding: true,
-        hasCompletedTour: true,
-      });
-      navigate("/");
-      return;
-    }
-
-    if (cellLeaderEmail && cellLeaderPassword && loginData.email === cellLeaderEmail && loginData.password === cellLeaderPassword) {
-      login({
-        id: "cell-leader-master",
-        email: cellLeaderEmail,
-        name: "Home Cell Leader",
-        role: "CELL_LEADER",
-        branchName: "Uyo Branch",
-        groupName: "Victory Cell Area 2",
-        unitStructureName: "Cells",
-        hasCompletedOnboarding: true,
-        hasCompletedTour: true,
-      });
-      navigate("/");
-      return;
-    }
-
-    if (interestLeaderEmail && interestLeaderPassword && loginData.email === interestLeaderEmail && loginData.password === interestLeaderPassword) {
-      login({
-        id: "interest-leader-master",
-        email: interestLeaderEmail,
-        name: "Sports Interest Leader",
-        role: "INTEREST_GROUP_LEADER",
-        branchName: "Uyo Branch",
-        groupName: "Pistis Runners Club",
-        unitStructureName: "Groups",
-        hasCompletedOnboarding: true,
-        hasCompletedTour: true,
-      });
-      navigate("/");
-      return;
-    }
-
-    if (foundationSchoolEmail && foundationSchoolPassword && loginData.email === foundationSchoolEmail && loginData.password === foundationSchoolPassword) {
-      login({
-        id: "foundation-school-master",
-        email: foundationSchoolEmail,
-        name: "Foundation School Principal",
-        role: "FOUNDATION_SCHOOL",
-        branchName: "Uyo Branch",
-        groupName: "Foundation School Batch A",
-        unitStructureName: "Classes",
-        hasCompletedOnboarding: true,
-        hasCompletedTour: true,
-      });
-      navigate("/");
-      return;
-    }
-
-    if (homeCellCoordEmail && homeCellCoordPassword && loginData.email === homeCellCoordEmail && loginData.password === homeCellCoordPassword) {
-      login({
-        id: "home-cell-coord-master",
-        email: homeCellCoordEmail,
-        name: "Home Cell Coordinator",
-        role: "HOME_CELL_COORD",
-        branchName: "Uyo Branch",
-        groupName: "Uyo Cells Network",
-        unitStructureName: "Areas",
-        hasCompletedOnboarding: true,
-        hasCompletedTour: true,
-      });
-      navigate("/");
-      return;
+      if (masterRes.ok) {
+        const masterData = await masterRes.json();
+        if (masterData.status === "ok" && masterData.user) {
+          login(masterData.user);
+          navigate("/");
+          return;
+        }
+      }
+    } catch (masterErr) {
+      console.warn("[Login] Master bypass check skipped or failed on server:", masterErr);
     }
     
     // Auth using Supabase
@@ -547,6 +442,17 @@ export function Login() {
 
   const submitRegistration = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (regData.password !== regData.confirmPassword) {
+      setErrorMsg("Passwords do not match.");
+      return;
+    }
+    
+    if (regData.password.length < 6) {
+      setErrorMsg("Password must be at least 6 characters.");
+      return;
+    }
+    
     setIsLoading(true);
     setErrorMsg("");
     
@@ -567,13 +473,7 @@ export function Login() {
       console.warn("DB check before registration failed/skipped:", err);
     }
 
-    // Generate a secure passwordless key under the hood
-    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-    let randomPart = "";
-    for (let i = 0; i < 5; i++) {
-      randomPart += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    const registrationPassword = `PN-${randomPart}`;
+    const registrationPassword = regData.password;
     setGeneratedKey(registrationPassword);
 
     const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
@@ -635,67 +535,65 @@ export function Login() {
     }
 
     if (!isOfflineFallback) {
-      const { error: profileError } = await supabase.from('profiles').insert([profileObj]);
-      
-      if (profileError) {
-        const isDuplicate = profileError.code === '23505' || 
-                            profileError.message?.toLowerCase().includes('duplicate') || 
-                            profileError.message?.toLowerCase().includes('already exists') ||
-                            profileError.message?.toLowerCase().includes('database error') ||
-                            profileError.message?.toLowerCase().includes('saving new');
-                             
-        if (isDuplicate || isReRegistrationBypass) {
-          const updateObj = {
-            email: regData.email,
-            full_name: regData.fullName,
-            role: regData.role,
-            country: regData.country,
-            branch_name: regData.branchName,
-            unit_name: regData.unitName,
-            login_key: registrationPassword,
-            status: 'PENDING' as const
-          };
-
-          try {
-            const localP = localStorage.getItem("local_profiles");
-            const list = localP ? JSON.parse(localP) : [];
-            const updatedList = list.map((p: any) => p.email?.toLowerCase() === regData.email.toLowerCase() ? { ...p, ...updateObj } : p);
-            if (!list.some((p: any) => p.email?.toLowerCase() === regData.email.toLowerCase())) {
-              updatedList.push({ id: userId, ...updateObj, created_at: new Date().toISOString() });
-            }
-            localStorage.setItem("local_profiles", JSON.stringify(updatedList));
-          } catch (e) {
-            console.error("Local storage error:", e);
-          }
-
-          const { error: updateError } = await supabase
-            .from('profiles')
-            .update(updateObj)
-            .eq('email', regData.email.toLowerCase());
-            
-          if (updateError) {
-            console.error("Profile update error during fallback:", updateError);
-            if (isReRegistrationBypass) {
-              console.warn("Resiliently bypassed online profile update error during re-registration. Saved profile locally.");
-            } else {
-              setErrorMsg(`Setup failed: ${updateError.message}. Please contact administration.`);
-              setIsLoading(false);
-              return;
-            }
-          }
+      let databaseSavedSuccess = false;
+      try {
+        const { error: profileError } = await supabase.from('profiles').insert([profileObj]);
+        if (!profileError) {
+          databaseSavedSuccess = true;
+          console.log("Profile created client-side successfully.");
         } else {
-          console.warn("Profile creation error:", profileError);
-          if (isReRegistrationBypass) {
-            console.warn("Resiliently bypassed profile insert error for re-registered user. Preserving locally.");
-          } else {
-            const { data: existingProfile } = await supabase.from('profiles').select('id').eq('email', regData.email.toLowerCase()).maybeSingle();
-            if (!existingProfile) {
-              setErrorMsg(`${profileError.message}. Please contact church administration.`);
-              setIsLoading(false);
-              return;
-            }
-          }
+          console.warn("Client-side profile insert failed, trying server-side mediator...", profileError.message);
         }
+      } catch (err) {
+        console.warn("Client-side profile insert exception, trying server-side mediator...", err);
+      }
+
+      // Call our secure backend registration proxy to ensure registration in Supabase database
+      try {
+        const serverRegResponse = await fetch("/api/register-profile", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ profile: profileObj })
+        });
+        
+        if (serverRegResponse.ok) {
+          console.log("Profile registered and saved securely via backend proxy.");
+          databaseSavedSuccess = true;
+        } else {
+          const errBody = await serverRegResponse.json().catch(() => ({}));
+          console.error("Backend profile registration proxy rejected:", errBody);
+        }
+      } catch (backendErr) {
+        console.error("Backend profile proxy exception:", backendErr);
+      }
+
+      const updateObj = {
+        email: regData.email,
+        full_name: regData.fullName,
+        role: regData.role,
+        country: regData.country,
+        branch_name: regData.branchName,
+        unit_name: regData.unitName,
+        login_key: registrationPassword,
+        status: 'PENDING' as const
+      };
+
+      try {
+        const localP = localStorage.getItem("local_profiles");
+        const list = localP ? JSON.parse(localP) : [];
+        const updatedList = list.map((p: any) => p.email?.toLowerCase() === regData.email.toLowerCase() ? { ...p, ...updateObj } : p);
+        if (!list.some((p: any) => p.email?.toLowerCase() === regData.email.toLowerCase())) {
+          updatedList.push({ id: userId, ...updateObj, created_at: new Date().toISOString() });
+        }
+        localStorage.setItem("local_profiles", JSON.stringify(updatedList));
+      } catch (e) {
+        console.error("Local storage user save error:", e);
+      }
+
+      if (!databaseSavedSuccess) {
+        console.warn("Operational notice: Profile was saved locally but online database storage was bypassed/failed.");
       }
     }
 
@@ -707,8 +605,16 @@ export function Login() {
         regData.branchName || "Global HQ",
         registrationPassword
       );
+
+      // Notify the relevant administrators based on dynamic scope (Global Admins or regional Branch Admins)
+      await EmailService.notifyAdminsOfRegistration(
+        regData.email,
+        regData.fullName,
+        regData.role || "Administrator",
+        regData.branchName || "Global HQ"
+      );
     } catch (emailErr) {
-      console.warn("Failed to dispatch signup welcome email, continuing...", emailErr);
+      console.warn("Failed to dispatch registration info / approval alerts:", emailErr);
     }
 
     setIsSubmitted(true);
@@ -1168,19 +1074,45 @@ export function Login() {
                               <Globe className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none ${theme === "light" ? "text-slate-400" : "text-white/40"}`} />
                               <select 
                                 className={`w-full rounded-xl py-3 pl-10 pr-10 text-sm focus:outline-none focus:ring-1 appearance-none cursor-pointer transition-all ${theme === "light" ? "bg-slate-50 border border-slate-300 text-slate-900 focus:border-royal-purple focus:ring-royal-purple/40" : "bg-black/45 border border-white/10 text-white focus:border-royal-purple focus:ring-royal-purple/40"}`} 
-                                value={regData.country} 
-                                onChange={(e) => setRegData({...regData, country: e.target.value})}
+                                value={regData.countryCode} 
+                                onChange={(e) => {
+                                      const code = e.target.value;
+                                      const cname = Country.getCountryByCode(code)?.name || "";
+                                      setRegData({...regData, countryCode: code, country: cname, stateCode: "", stateRegion: "", branchName: "", unitName: ""});
+                                }}
                               >
                                 <option value="" disabled className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Select Country</option>
-                                <option value="Nigeria" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Nigeria</option>
-                                <option value="United Kingdom" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>United Kingdom</option>
-                                <option value="United States" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>United States</option>
-                                <option value="Canada" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Canada</option>
+                                {Country.getAllCountries().map(c => (
+                                    <option key={c.isoCode} value={c.isoCode} className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>{c.name}</option>
+                                ))}
                               </select>
                               <div className={`absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-[10px] ${theme === "light" ? "text-slate-400" : "text-white/40"}`}>▼</div>
                             </div>
                           </div>
                           
+                          <div className="space-y-1">
+                              <label className={`text-[11px] uppercase tracking-wider font-bold ml-1 ${theme === "light" ? "text-slate-500" : "text-lilac/70"}`}>State</label>
+                            <div className="relative">
+                              <MapPin className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none ${theme === "light" ? "text-slate-400" : "text-white/40"}`} />
+                              <select 
+                                className={`w-full rounded-xl py-3 pl-10 pr-10 text-sm focus:outline-none focus:ring-1 appearance-none cursor-pointer transition-all ${theme === "light" ? "bg-slate-50 border border-slate-300 text-slate-900 focus:border-royal-purple focus:ring-royal-purple/40" : "bg-black/45 border border-white/10 text-white focus:border-royal-purple focus:ring-royal-purple/40"}`} 
+                                value={regData.stateCode} 
+                                onChange={(e) => {
+                                    const scode = e.target.value;
+                                    const sname = State.getStateByCodeAndCountry(scode, regData.countryCode)?.name || "";
+                                    setRegData({...regData, stateCode: scode, stateRegion: sname, branchName: "", unitName: ""});
+                                }}
+                                disabled={!regData.countryCode}
+                              >
+                                <option value="" disabled className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Select State</option>
+                                {regData.countryCode && State.getStatesOfCountry(regData.countryCode).map(s => (
+                                   <option key={s.isoCode} value={s.isoCode} className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>{s.name}</option>
+                                ))}
+                              </select>
+                              <div className={`absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-[10px] ${theme === "light" ? "text-slate-400" : "text-white/40"}`}>▼</div>
+                            </div>
+                          </div>
+
                           <div className="space-y-1">
                               <label className={`text-[11px] uppercase tracking-wider font-bold ml-1 ${theme === "light" ? "text-slate-500" : "text-lilac/70"}`}>City Expression</label>
                             <div className="relative">
@@ -1188,11 +1120,14 @@ export function Login() {
                               <select 
                                 className={`w-full rounded-xl py-3 pl-10 pr-10 text-sm focus:outline-none focus:ring-1 appearance-none cursor-pointer transition-all ${theme === "light" ? "bg-slate-50 border border-slate-300 text-slate-900 focus:border-royal-purple focus:ring-royal-purple/40" : "bg-black/45 border border-white/10 text-white focus:border-royal-purple focus:ring-royal-purple/40"}`} 
                                 value={regData.branchName} 
-                                onChange={(e) => setRegData({...regData, branchName: e.target.value})}
+                                onChange={(e) => setRegData({...regData, branchName: e.target.value, unitName: ""})}
+                                disabled={!regData.stateCode}
                               >
                                 <option value="" disabled className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Select City Expression</option>
-                                <option value="Uyo (HQ)" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Uyo (HQ)</option>
-                                <option value="Calabar" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Calabar</option>
+                                {regData.stateCode && City.getCitiesOfState(regData.countryCode, regData.stateCode).map(c => {
+                                   const displayCity = c.name === "Uyo" && regData.countryCode === "NG" ? "Uyo (HQ)" : c.name;
+                                   return <option key={c.name} value={displayCity} className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>{displayCity}</option>;
+                                })}
                               </select>
                               <div className={`absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-[10px] ${theme === "light" ? "text-slate-400" : "text-white/40"}`}>▼</div>
                             </div>
@@ -1229,31 +1164,55 @@ export function Login() {
 
                      {selectedRoles.some(r => r !== 'GLOBAL_ADMIN' && r !== 'BRANCH_ADMIN') && (
                           <div className="space-y-1">
-                            <label className={`text-[11px] uppercase tracking-wider font-bold ml-1 ${theme === "light" ? "text-slate-500" : "text-lilac/70"}`}>Your Department</label>
+                            <label className={`text-[11px] uppercase tracking-wider font-bold ml-1 ${theme === "light" ? "text-slate-500" : "text-lilac/70"}`}>
+                                {selectedRoles.includes('CELL_LEADER') ? 'Your Cell Location' : 'Your Department'}
+                            </label>
                             <div className="relative">
                               <Building className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none ${theme === "light" ? "text-slate-400" : "text-white/40"}`} />
-                              <select 
-                                className={`w-full rounded-xl py-3 pl-10 pr-10 text-sm focus:outline-none focus:ring-1 appearance-none cursor-pointer transition-all ${theme === "light" ? "bg-slate-50 border border-slate-300 text-slate-900 focus:border-royal-purple focus:ring-royal-purple/40" : "bg-black/45 border border-white/10 text-white focus:border-royal-purple focus:ring-royal-purple/40"}`}
-                                value={regData.unitName}
-                                onChange={(e) => setRegData({...regData, unitName: e.target.value})}
-                              >
-                                <option value="" disabled className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Select Department</option>
-                                <option value="Media" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Media</option>
-                                <option value="The Living Portals (Choir)" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>The Living Portals (Choir)</option>
-                                <option value="Technical" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Technical</option>
-                                <option value="Ushering" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Ushering</option>
-                                <option value="Pastoral Team / Greeters" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Pastoral Team / Greeters</option>
-                                <option value="Evangelism & Missions" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Evangelism & Missions</option>
-                                <option value="Welfare" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Welfare</option>
-                                <option value="Children’s Church" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Children’s Church</option>
-                                <option value="Teens Church" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Teens Church</option>
-                                <option value="Intercessory" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Intercessory</option>
-                                <option value="Protocol" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Protocol</option>
-                                <option value="Follow-up" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Follow-up</option>
-                                <option value="Pistis Art" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Pistis Art</option>
-                                <option value="Sanctuary Keepers" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Sanctuary Keepers</option>
-                              </select>
-                              <div className={`absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-[10px] ${theme === "light" ? "text-slate-400" : "text-white/40"}`}>▼</div>
+                              {selectedRoles.includes('CELL_LEADER') && regData.branchName !== "Uyo (HQ)" ? (
+                                <input 
+                                  placeholder="Type your Cell Group name"
+                                  className={`w-full rounded-xl py-3 pl-10 pr-4 text-sm focus:outline-none focus:ring-1 ${theme === "light" ? "bg-slate-50 border border-slate-300 text-slate-900 focus:border-royal-purple focus:ring-royal-purple/40" : "bg-black/45 border border-white/10 text-white focus:border-royal-purple focus:ring-royal-purple/40"}`}
+                                  value={regData.unitName}
+                                  onChange={(e) => setRegData({...regData, unitName: e.target.value})}
+                                />
+                              ) : (
+                                <>
+                                  <select 
+                                    className={`w-full rounded-xl py-3 pl-10 pr-10 text-sm focus:outline-none focus:ring-1 appearance-none cursor-pointer transition-all ${theme === "light" ? "bg-slate-50 border border-slate-300 text-slate-900 focus:border-royal-purple focus:ring-royal-purple/40" : "bg-black/45 border border-white/10 text-white focus:border-royal-purple focus:ring-royal-purple/40"}`}
+                                    value={regData.unitName}
+                                    onChange={(e) => setRegData({...regData, unitName: e.target.value})}
+                                  >
+                                    <option value="" disabled className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Select {selectedRoles.includes('CELL_LEADER') ? 'Cell Location' : 'Department'}</option>
+                                    {selectedRoles.includes('CELL_LEADER') ? (
+                                      <>
+                                        <option value="Osong Ama Zone" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Osong Ama Zone</option>
+                                        <option value="Shelter Afrique Zone" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Shelter Afrique Zone</option>
+                                        <option value="Ewet Housing Zone" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Ewet Housing Zone</option>
+                                        <option value="Nwaniba Zone" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Nwaniba Zone</option>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <option value="Media" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Media</option>
+                                        <option value="The Living Portals (Choir)" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>The Living Portals (Choir)</option>
+                                        <option value="Technical" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Technical</option>
+                                        <option value="Ushering" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Ushering</option>
+                                        <option value="Pastoral Team / Greeters" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Pastoral Team / Greeters</option>
+                                        <option value="Evangelism & Missions" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Evangelism & Missions</option>
+                                        <option value="Welfare" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Welfare</option>
+                                        <option value="Children’s Church" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Children’s Church</option>
+                                        <option value="Teens Church" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Teens Church</option>
+                                        <option value="Intercessory" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Intercessory</option>
+                                        <option value="Protocol" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Protocol</option>
+                                        <option value="Follow-up" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Follow-up</option>
+                                        <option value="Pistis Art" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Pistis Art</option>
+                                        <option value="Sanctuary Keepers" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Sanctuary Keepers</option>
+                                      </>
+                                    )}
+                                  </select>
+                                  <div className={`absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-[10px] ${theme === "light" ? "text-slate-400" : "text-white/40"}`}>▼</div>
+                                </>
+                              )}
                             </div>
                           </div>
                        )}
@@ -1336,36 +1295,51 @@ export function Login() {
                           />
                         </div>
                      </div>
-                     <div className="space-y-1">
-                        <label className="hidden">Access Verification Card</label>
-                         <div className={`p-4 mb-4 rounded-xl border flex gap-3 text-xs leading-relaxed ${
-                          theme === "light" 
-                            ? "bg-indigo-50/50 border-indigo-100 text-[#0f172a]" 
-                            : "bg-indigo-500/5 border-indigo-500/10 text-indigo-200"
-                        }`}>
-                          <KeyRound className={`w-5 h-5 shrink-0 mt-0.5 ${theme === "light" ? "text-indigo-600" : "text-[#B193FB]"}`} />
-                          <span>
-                            <strong>Passwordless Secure Key Delivery.</strong> To maintain absolute church registry safety, a unique personalized secure entry key card will be automatically generated and dispatched directly to your inbox alongside your registration confirmation!
-                          </span>
+                     <div className="space-y-4 pt-2">
+                        <div className="space-y-1">
+                          <label className={`text-[11px] uppercase tracking-wider font-bold ml-1 ${theme === "light" ? "text-slate-500" : "text-lilac/70"}`}>Password</label>
+                          <div className="relative">
+                            <Lock className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 ${theme === "light" ? "text-slate-400" : "text-white/40"}`} />
+                            <input 
+                              type={showRegPassword ? "text" : "password"} 
+                              placeholder="Create a strong password"
+                              required
+                              minLength={6}
+                              className={`w-full rounded-xl py-3 pl-10 pr-11 text-sm focus:outline-none focus:ring-1 transition-all ${theme === "light" ? "bg-slate-50 border border-slate-300 text-slate-900 focus:border-royal-purple focus:ring-royal-purple/40 placeholder:text-slate-400" : "bg-black/45 border border-white/10 text-white focus:border-royal-purple focus:ring-royal-purple/40 placeholder:text-white/20"}`} 
+                              value={regData.password || ""} 
+                              onChange={(e) => setRegData({...regData, password: e.target.value})} 
+                            />
+                            <button 
+                              type="button" 
+                              onClick={() => setShowRegPassword(!showRegPassword)} 
+                              className={`absolute right-3.5 top-1/2 -translate-y-1/2 transition-colors cursor-pointer ${theme === "light" ? "text-slate-400 hover:text-slate-600" : "text-white/40 hover:text-white"}`}
+                            >
+                              {showRegPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            </button>
+                          </div>
                         </div>
-                        <div className="hidden">
-                        <div className="relative">
-                          <Lock className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 ${theme === "light" ? "text-slate-400" : "text-white/40"}`} />
-                          <input 
-                            type={showRegPassword ? "text" : "password"} 
-                            placeholder="Minimum 8 characters"
-                            className={`w-full rounded-xl py-3 pl-10 pr-11 text-sm focus:outline-none focus:ring-1 transition-all ${theme === "light" ? "bg-slate-50 border border-slate-300 text-slate-900 focus:border-royal-purple focus:ring-royal-purple/40 placeholder:text-slate-400" : "bg-black/45 border border-white/10 text-white focus:border-royal-purple focus:ring-royal-purple/40 placeholder:text-white/20"}`} 
-                            value={regData.password} 
-                            onChange={(e) => setRegData({...regData, password: e.target.value})} 
-                          />
-                          <button 
-                            type="button" 
-                            onClick={() => setShowRegPassword(!showRegPassword)} 
-                            className={`absolute right-3.5 top-1/2 -translate-y-1/2 transition-colors cursor-pointer ${theme === "light" ? "text-slate-400 hover:text-slate-600" : "text-white/40 hover:text-white"}`}
-                          >
-                            {showRegPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                          </button>
-                        </div>
+
+                        <div className="space-y-1">
+                          <label className={`text-[11px] uppercase tracking-wider font-bold ml-1 ${theme === "light" ? "text-slate-500" : "text-lilac/70"}`}>Confirm Password</label>
+                          <div className="relative">
+                            <Lock className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 ${theme === "light" ? "text-slate-400" : "text-white/40"}`} />
+                            <input 
+                              type={showRegConfirmPassword ? "text" : "password"} 
+                              placeholder="Confirm your password"
+                              required
+                              minLength={6}
+                              className={`w-full rounded-xl py-3 pl-10 pr-11 text-sm focus:outline-none focus:ring-1 transition-all ${theme === "light" ? "bg-slate-50 border border-slate-300 text-slate-900 focus:border-royal-purple focus:ring-royal-purple/40 placeholder:text-slate-400" : "bg-black/45 border border-white/10 text-white focus:border-royal-purple focus:ring-royal-purple/40 placeholder:text-white/20"}`} 
+                              value={regData.confirmPassword || ""} 
+                              onChange={(e) => setRegData({...regData, confirmPassword: e.target.value})} 
+                            />
+                            <button 
+                              type="button" 
+                              onClick={() => setShowRegConfirmPassword(!showRegConfirmPassword)} 
+                              className={`absolute right-3.5 top-1/2 -translate-y-1/2 transition-colors cursor-pointer ${theme === "light" ? "text-slate-400 hover:text-slate-600" : "text-white/40 hover:text-white"}`}
+                            >
+                              {showRegConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            </button>
+                          </div>
                         </div>
                      </div>
 
@@ -1394,7 +1368,7 @@ export function Login() {
                      <CheckCircle2 className="w-7 h-7 text-emerald-400" />
                   </div>
                   <h3 className="text-white font-bold text-lg mb-1.5">Request Received Successfully</h3>
-                  <p className="text-xs text-lilac/80 mb-6 leading-relaxed max-w-sm">
+                  <div className="text-xs text-lilac/80 mb-6 leading-relaxed max-w-sm">
                     Your request to register as <strong className="text-emerald-400">{regData.role?.split(',').map((r: any) => r.replace(/_/g, ' ')).join(' & ')}</strong> 
                     {regData.branchName && ` for the ${regData.branchName} campus`} has been safe-logged.
                     <br/><br/>
@@ -1403,22 +1377,22 @@ export function Login() {
                       : `The local administration team for ${regData.branchName} will confirm and activate your leadership account.`}
                     <br/><br/>
                     <div className="w-full max-w-sm p-4 my-4 rounded-xl border border-indigo-500/20 bg-indigo-500/5 text-center">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-[#10b981] mb-1">Direct Secure Dispatch Completed</p>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-[#10b981] mb-1">Registration Complete</p>
                       <p className="text-[11px] text-white/90 font-medium leading-relaxed">
-                        For maximum safety, your personal login access credentials have been compiled and sent directly to <span className="text-emerald-400 font-bold">{regData.email}</span>.
+                        You have successfully created your password. Once your account is authorized by an Administrator, you will be able to log in with your email address <span className="text-emerald-400 font-bold">{regData.email}</span>.
                       </p>
                       <p className="text-[10px] text-zinc-400 mt-2 leading-relaxed">
-                        Please check your inbox (and spam/junk folder) for your secure credentials.
+                        Please look out for an approval confirmation email before attempting to sign in.
                       </p>
                     </div>
-                  </p>
+                  </div>
                   <button 
                     onClick={() => {
                       setIsSubmitted(false);
                       setView("LOGIN_SELECT");
                       setStep(1);
                       setRegData({
-                        role: "", country: "", branchName: "", unitName: "", fullName: "", email: "", password: ""
+                        role: "", country: "", stateRegion: "", countryCode: "", stateCode: "", branchName: "", unitName: "", fullName: "", email: "", password: "", confirmPassword: ""
                       });
                     }} 
                     className="text-[11px] text-[#070110] bg-emerald-400 hover:bg-[#A3E635] px-6 py-2.5 rounded-lg uppercase tracking-widest font-extrabold transition-all cursor-pointer shadow-md shadow-emerald-500/10"

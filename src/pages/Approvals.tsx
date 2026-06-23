@@ -118,7 +118,8 @@ export function Approvals() {
             targetProfile.email,
             targetProfile.full_name,
             targetRole,
-            branch
+            branch,
+            targetProfile.login_key
           );
         } catch (mailError) {
           console.error("Failed to compile or dispatch welcome notification:", mailError);

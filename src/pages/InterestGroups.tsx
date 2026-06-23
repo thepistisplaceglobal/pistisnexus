@@ -3,6 +3,7 @@ import { InsightCard } from "@/components/ui/InsightCard";
 import { Filter, Compass, Briefcase, Landmark, TrendingUp, GraduationCap, Palette, Megaphone, Stethoscope, Scissors, Scale, Monitor, Building } from "lucide-react";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { ReportingWidget } from "@/components/ui/ReportingWidget";
+import { UnitMembersManager } from "@/components/UnitMembersManager";
 
 const interestGroupsList = [
   {
@@ -168,6 +169,11 @@ export function InterestGroups() {
           />
         </div>
       </section>
+
+      <section className="w-full">
+        <UnitMembersManager unitType="interest_group" />
+      </section>
+
     </div>
   );
 }

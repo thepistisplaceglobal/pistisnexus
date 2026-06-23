@@ -13,15 +13,16 @@ export function Sidebar() {
   };
 
   const allItems = [
-    { name: "Hub", id: "Hub", icon: LayoutDashboard, path: "/", roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN", "DEPT_LEADER", "CELL_LEADER", "INTEREST_GROUP_LEADER", "FOUNDATION_SCHOOL", "HOME_CELL_COORD"] },
+    { name: "Global Intelligence", id: "Hub", icon: LayoutDashboard, path: "/", roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN", "DEPT_LEADER", "CELL_LEADER", "INTEREST_GROUP_LEADER", "FOUNDATION_SCHOOL", "HOME_CELL_COORD"] },
     { name: "City Expressions", id: "Branches", icon: Network, path: "/branches", roles: ["GLOBAL_ADMIN"] },
     { name: "Access Approvals", id: "Approvals", icon: Key, path: "/approvals", roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN"] },
     { name: "Finance", id: "Finance", icon: Wallet, path: "/finance", roles: ["DEPT_LEADER", "CELL_LEADER", "INTEREST_GROUP_LEADER"] },
     { name: "Departments", id: "Departments", icon: Users, path: "/departments", roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN", "DEPT_LEADER"] },
-    { name: "Home Cells", id: "HomeCells", icon: Home, path: "/homecells", roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN", "CELL_LEADER", "HOME_CELL_COORD", "DEPT_LEADER"] },
+    { name: "Home Cells", id: "HomeCells", icon: Home, path: "/homecells", roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN", "HOME_CELL_COORD"] },
     { name: "Interest Groups", id: "InterestGroups", icon: Compass, path: "/interest", roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN", "INTEREST_GROUP_LEADER"] },
     { name: "Foundation School", id: "FoundationSchool", icon: GraduationCap, path: "/foundationschool", roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN", "FOUNDATION_SCHOOL"] },
     { name: "Leaders Directory", id: "Directory", icon: Contact, path: "/directory", roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN", "DEPT_LEADER", "CELL_LEADER", "INTEREST_GROUP_LEADER", "FOUNDATION_SCHOOL", "HOME_CELL_COORD"] },
+    { name: "Members Directory", id: "MembersDirectory", icon: Users, path: "/members", roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN", "DEPT_LEADER", "CELL_LEADER", "INTEREST_GROUP_LEADER", "FOUNDATION_SCHOOL", "HOME_CELL_COORD"] },
     { name: "Reports", id: "Reports", icon: FileText, path: "/reports", roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN", "DEPT_LEADER", "CELL_LEADER", "INTEREST_GROUP_LEADER", "FOUNDATION_SCHOOL", "HOME_CELL_COORD"] },
     { name: "Settings", id: "Settings", icon: Settings, path: "/settings", roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN", "DEPT_LEADER", "CELL_LEADER", "INTEREST_GROUP_LEADER", "FOUNDATION_SCHOOL", "HOME_CELL_COORD"] },
   ];
