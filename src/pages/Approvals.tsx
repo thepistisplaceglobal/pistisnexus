@@ -187,15 +187,32 @@ export function Approvals() {
     }
   };
 
-  const pendingCount = profiles.filter(p => p.status === "PENDING").length;
+  const isProfileVisibleToApprover = (profileRoleStr?: string, profileBranch?: string) => {
+    if (!user) return false;
+    const roleStr = profileRoleStr || "";
+    const isGlobalLevel = roleStr.includes("GLOBAL_ADMIN") || roleStr.includes("BRANCH_ADMIN");
+
+    if (user.role === "GLOBAL_ADMIN") {
+      return isGlobalLevel;
+    }
+
+    if (user.role === "BRANCH_ADMIN" && profileBranch === user.branchName) {
+      return !isGlobalLevel;
+    }
+
+    return false;
+  };
+
+  const visibleSystemProfiles = profiles.filter(p => isProfileVisibleToApprover(p.role, p.branch_name));
+
+  const pendingCount = visibleSystemProfiles.filter(p => p.status === "PENDING").length;
 
   const isGlobal = user?.role === "GLOBAL_ADMIN";
   const userBranch = user?.branchName || "";
 
-  const trashProfiles = profiles.filter(p => {
+  const trashProfiles = visibleSystemProfiles.filter(p => {
     if (p.status !== "DELETED") return false;
     if (isPruned(p.deleted_at)) return false;
-    if (!isGlobal && p.branch_name !== userBranch) return false;
     return true;
   });
 
@@ -208,9 +225,9 @@ export function Approvals() {
 
   const trashCount = trashProfiles.length + trashLeaders.length;
 
-  const filteredProfiles = profiles.filter(p => {
+  const filteredProfiles = visibleSystemProfiles.filter(p => {
     if (tab === "TRASH") {
-      return p.status === "DELETED" && !isPruned(p.deleted_at) && (isGlobal || p.branch_name === userBranch);
+      return p.status === "DELETED" && !isPruned(p.deleted_at);
     }
     return p.status === tab;
   }).filter(p => 
@@ -219,34 +236,16 @@ export function Approvals() {
     (p.branch_name && p.branch_name.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  const visiblePasswordRequests = passwordRequests.filter(req => {
-    if (user?.role === "GLOBAL_ADMIN") {
-        // Global admin should only approve requests from the Branches
-        return req.role === "BRANCH_ADMIN" || req.role === "GLOBAL_ADMIN"; 
-    }
-    if (user?.role === "BRANCH_ADMIN" && req.branchName === user.branchName) {
-        // "the branches should approve for branch units"
-        if (req.role === "GLOBAL_ADMIN" || req.role === "BRANCH_ADMIN") return false;
-        return true;
-    }
-    return false;
-  }).filter(req => 
+  const visiblePasswordRequests = passwordRequests.filter(req => 
+    isProfileVisibleToApprover(req.role, req.branchName)
+  ).filter(req => 
     req.userEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (req.branchName && req.branchName.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  const pendingPasswordCount = passwordRequests.filter(req => {
-    if (!user) return false;
-    if (req.status !== "PENDING") return false;
-    if (user.role === "GLOBAL_ADMIN") {
-        return req.role === "BRANCH_ADMIN" || req.role === "GLOBAL_ADMIN"; 
-    }
-    if (user.role === "BRANCH_ADMIN" && req.branchName === user.branchName) {
-        if (req.role === "GLOBAL_ADMIN" || req.role === "BRANCH_ADMIN") return false;
-        return true;
-    }
-    return false;
-  }).length;
+  const pendingPasswordCount = passwordRequests.filter(req => 
+    req.status === "PENDING" && isProfileVisibleToApprover(req.role, req.branchName)
+  ).length;
 
   const handleApprovePassword = async (req: any) => {
     try {

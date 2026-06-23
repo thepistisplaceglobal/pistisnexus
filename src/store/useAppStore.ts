@@ -474,10 +474,9 @@ export const useAppStore = create<AppState>()(
         try {
           let query = supabase.from("profiles").select("*");
           if (currentUser?.role === "GLOBAL_ADMIN") {
-            query = query.in("role", ["GLOBAL_ADMIN", "BRANCH_ADMIN"]);
+            // Global Admin can see all profiles across all branches
           } else if (currentUser?.role === "BRANCH_ADMIN") {
             query = query.eq("branch_name", currentUser.branchName || "");
-            query = query.not("role", "in", '("GLOBAL_ADMIN", "BRANCH_ADMIN")');
           }
           const { data, error } = await query;
           if (!error && data) {
