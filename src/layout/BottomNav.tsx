@@ -40,21 +40,34 @@ export function BottomNav() {
     }
   }, [user, fetchProfiles]);
 
-  const passwordRequests = useAppStore(state => state.passwordRequests) || [];
-  const pendingPasswordCount = passwordRequests.filter(req => {
-    if (!user) return false;
-    if (req.status !== "PENDING") return false;
-    if (user.role === "GLOBAL_ADMIN") {
-        return true; 
-    }
-    if (user.role === "BRANCH_ADMIN" && req.branchName === user.branchName) {
-        if (req.role === "GLOBAL_ADMIN" || req.role === "BRANCH_ADMIN") return false;
-        return true;
-    }
-    return false;
-  }).length;
+  const getRoutingKey = (roleStr: string) => {
+    return (roleStr.includes("GLOBAL_ADMIN") || roleStr.includes("BRANCH_ADMIN")) ? "GLOBAL" : "BRANCH";
+  };
 
-  const pendingRegistrationsCount = (profiles || []).filter(p => p.status === "PENDING").length;
+  const isProfileVisibleToApprover = (profileRoleStr?: string, profileBranch?: string) => {
+    if (!user) return false;
+    const routingKey = getRoutingKey(profileRoleStr || "");
+    const userRoles = user.roles || [user.role];
+
+    if (userRoles.includes("GLOBAL_ADMIN")) {
+      return routingKey === "GLOBAL";
+    }
+
+    if (userRoles.includes("BRANCH_ADMIN") && profileBranch === user.branchName) {
+      return routingKey === "BRANCH";
+    }
+
+    return false;
+  };
+
+  const passwordRequests = useAppStore(state => state.passwordRequests) || [];
+  const pendingPasswordCount = passwordRequests.filter(req => 
+    req.status === "PENDING" && isProfileVisibleToApprover(req.role, req.branchName)
+  ).length;
+
+  const pendingRegistrationsCount = (profiles || []).filter(p => 
+    p.status === "PENDING" && isProfileVisibleToApprover(p.role, p.branch_name)
+  ).length;
   const totalPendingApprovals = pendingPasswordCount + pendingRegistrationsCount;
   
   const visibleItems = navItems.length > 5 ? navItems.slice(0, 4) : navItems;

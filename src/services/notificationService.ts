@@ -142,4 +142,41 @@ export class NotificationService {
       }
     }
   }
+
+  static handleRealtimeProfileEvent(payload: any, currentUser: any) {
+    if (!currentUser) return;
+    const { eventType, new: newRecord, old: oldRecord } = payload;
+    const record = newRecord || oldRecord;
+    if (!record) return;
+
+    const { id, full_name, role, branch_name, status } = record;
+
+    if (eventType === 'INSERT' && status === 'PENDING') {
+      const getRoutingKey = (roleStr: string) => {
+        return (roleStr.includes("GLOBAL_ADMIN") || roleStr.includes("BRANCH_ADMIN")) ? "GLOBAL" : "BRANCH";
+      };
+      
+      const routingKey = getRoutingKey(role || "");
+      const userRoles = currentUser.roles || [currentUser.role];
+      
+      if (routingKey === "GLOBAL" && userRoles.includes("GLOBAL_ADMIN")) {
+        this.sendLocalNotification("New Leader Registration", {
+          body: `${full_name} has registered for ${role.replace(/_/g, ' ')} and is awaiting approval.`,
+          tag: `profile-registration-${id}`
+        });
+      } else if (routingKey === "BRANCH" && userRoles.includes("BRANCH_ADMIN") && currentUser.branchName === branch_name) {
+        this.sendLocalNotification("New Unit Leader Registration", {
+          body: `${full_name} has registered for ${role.replace(/_/g, ' ')} in ${branch_name} and is awaiting your approval.`,
+          tag: `profile-registration-${id}`
+        });
+      }
+    } else if (eventType === 'UPDATE' && currentUser.id === id) {
+      if (status === 'APPROVED') {
+        this.sendLocalNotification("Account Approved 🌟", {
+          body: `Your account has been officially approved! You can now log in securely.`,
+          tag: `profile-approved-${id}`
+        });
+      }
+    }
+  }
 }

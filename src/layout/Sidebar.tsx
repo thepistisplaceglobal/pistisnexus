@@ -36,6 +36,39 @@ export function Sidebar() {
       }) 
     : [];
 
+  const { profiles } = useAppStore();
+  const passwordRequests = useAppStore(state => state.passwordRequests) || [];
+
+  const getRoutingKey = (roleStr: string) => {
+    return (roleStr.includes("GLOBAL_ADMIN") || roleStr.includes("BRANCH_ADMIN")) ? "GLOBAL" : "BRANCH";
+  };
+
+  const isProfileVisibleToApprover = (profileRoleStr?: string, profileBranch?: string) => {
+    if (!user) return false;
+    const routingKey = getRoutingKey(profileRoleStr || "");
+    const userRoles = user.roles || [user.role];
+
+    if (userRoles.includes("GLOBAL_ADMIN")) {
+      return routingKey === "GLOBAL";
+    }
+
+    if (userRoles.includes("BRANCH_ADMIN") && profileBranch === user.branchName) {
+      return routingKey === "BRANCH";
+    }
+
+    return false;
+  };
+
+  const pendingPasswordCount = passwordRequests.filter(req => 
+    req.status === "PENDING" && isProfileVisibleToApprover(req.role, req.branchName)
+  ).length;
+
+  const pendingRegistrationsCount = (profiles || []).filter(p => 
+    p.status === "PENDING" && isProfileVisibleToApprover(p.role, p.branch_name)
+  ).length;
+
+  const totalPendingApprovals = pendingPasswordCount + pendingRegistrationsCount;
+
   const handleNavClick = (id: string, path: string) => {
     setCurrentModule(id);
     navigate(path);
@@ -62,14 +95,21 @@ export function Sidebar() {
               key={item.name}
               id={`nav-${item.id}`} // Used for onboarding tour
               onClick={() => handleNavClick(item.id, item.path)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-sm font-medium ${
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all text-sm font-medium ${
                 isActive
                   ? (theme === "light" ? "bg-royal-purple/10 text-royal-purple" : "bg-royal-purple/20 text-white")
                   : (theme === "light" ? "text-slate-600 hover:bg-slate-50 hover:text-royal-purple" : "text-white/60 hover:bg-white/5 hover:text-white")
               }`}
             >
-              <Icon className={`w-5 h-5 ${isActive ? (theme === "light" ? "text-royal-purple" : "text-[#B193FB]") : ""}`} />
-              {item.name}
+              <div className="flex items-center gap-3">
+                <Icon className={`w-5 h-5 ${isActive ? (theme === "light" ? "text-royal-purple" : "text-[#B193FB]") : ""}`} />
+                {item.name}
+              </div>
+              {item.path === "/approvals" && totalPendingApprovals > 0 && (
+                <span className="bg-amber-500 text-black text-[10px] font-bold px-2 py-0.5 rounded-full shadow border border-black/10">
+                  {totalPendingApprovals}
+                </span>
+              )}
             </button>
           );
         })}

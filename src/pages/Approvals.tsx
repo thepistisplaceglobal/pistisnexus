@@ -187,17 +187,21 @@ export function Approvals() {
     }
   };
 
+  const getRoutingKey = (roleStr: string) => {
+    return (roleStr.includes("GLOBAL_ADMIN") || roleStr.includes("BRANCH_ADMIN")) ? "GLOBAL" : "BRANCH";
+  };
+
   const isProfileVisibleToApprover = (profileRoleStr?: string, profileBranch?: string) => {
     if (!user) return false;
-    const roleStr = profileRoleStr || "";
-    const isGlobalLevel = roleStr.includes("GLOBAL_ADMIN") || roleStr.includes("BRANCH_ADMIN");
+    const routingKey = getRoutingKey(profileRoleStr || "");
+    const userRoles = user.roles || [user.role];
 
-    if (user.role === "GLOBAL_ADMIN") {
-      return isGlobalLevel;
+    if (userRoles.includes("GLOBAL_ADMIN")) {
+      return routingKey === "GLOBAL";
     }
 
-    if (user.role === "BRANCH_ADMIN" && profileBranch === user.branchName) {
-      return !isGlobalLevel;
+    if (userRoles.includes("BRANCH_ADMIN") && profileBranch === user.branchName) {
+      return routingKey === "BRANCH";
     }
 
     return false;

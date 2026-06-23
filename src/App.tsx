@@ -63,9 +63,28 @@ export default function App() {
 
     const verifyUserSession = async () => {
       // Offline/master/seed logins bypass DB verification
-      if (user.id.startsWith("offline-") || user.id === "home-cell-coord-master") return;
+      if (user.id === "home-cell-coord-master") return;
+
+      const validateOffline = () => {
+        const localP = localStorage.getItem("local_profiles");
+        if (localP) {
+          const list = JSON.parse(localP);
+          const localProfile = list.find((p: any) => p.id === user.id || p.email === user.email);
+          if (localProfile && (localProfile.status === "PENDING" || localProfile.status === "REJECTED")) {
+            console.log("Local offline profile status is not approved.");
+            useAppStore.getState().logout();
+            return true;
+          }
+        }
+        return false;
+      };
 
       try {
+        if (!navigator.onLine) {
+          validateOffline();
+          return;
+        }
+
         const { data: profile, error } = await supabase
           .from("profiles")
           .select("id, status")
@@ -74,7 +93,7 @@ export default function App() {
 
         if (error) {
           console.warn("Failed to verify user profile state:", error);
-          return;
+          if (validateOffline()) return;
         }
 
         // If no profile, or if status is not APPROVED, sign out!
@@ -127,9 +146,21 @@ export default function App() {
       )
       .subscribe();
 
+    const profilesChannel = supabase
+      .channel("global_profiles_notifications")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "profiles" },
+        (payload) => {
+          NotificationService.handleRealtimeProfileEvent(payload, user);
+        }
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(unitReportsChannel);
       supabase.removeChannel(branchReportsChannel);
+      supabase.removeChannel(profilesChannel);
     };
   }, [user]);
 

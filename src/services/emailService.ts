@@ -227,12 +227,12 @@ export const EmailService = {
     let adminsToNotify: { email: string; full_name: string }[] = [];
     
     try {
-      if (role === "BRANCH_ADMIN" || role === "GLOBAL_ADMIN") {
-        // Global Admins approve Branch Admins and other Global Admins
+      if (role.includes("GLOBAL_ADMIN") || role.includes("BRANCH_ADMIN")) {
+        // Global Admins approve Branch Admins and other Global Admins (even if they have multiple roles)
         const { data, error } = await supabase
           .from("profiles")
           .select("email, full_name")
-          .eq("role", "GLOBAL_ADMIN");
+          .like("role", "%GLOBAL_ADMIN%");
         
         if (!error && data && data.length > 0) {
           adminsToNotify = data;
@@ -242,7 +242,7 @@ export const EmailService = {
         const { data, error } = await supabase
           .from("profiles")
           .select("email, full_name")
-          .eq("role", "BRANCH_ADMIN")
+          .like("role", "%BRANCH_ADMIN%")
           .eq("branch_name", branchName);
           
         if (!error && data && data.length > 0) {
