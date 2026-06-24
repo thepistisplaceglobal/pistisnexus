@@ -1195,57 +1195,37 @@ export function Login() {
                        </GlassCard>
                      )}
 
-                     {selectedRoles.some(r => r !== 'GLOBAL_ADMIN' && r !== 'BRANCH_ADMIN') && (
+                     {selectedRoles.includes('DEPT_LEADER') && (
                           <div className="space-y-1">
                             <label className={`text-[11px] uppercase tracking-wider font-bold ml-1 ${theme === "light" ? "text-slate-500" : "text-lilac/70"}`}>
-                                {selectedRoles.includes('CELL_LEADER') ? 'Your Cell Location' : 'Your Department'}
+                                Your Department
                             </label>
                             <div className="relative">
                               <Building className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none ${theme === "light" ? "text-slate-400" : "text-white/40"}`} />
-                              {selectedRoles.includes('CELL_LEADER') && regData.branchName !== "Uyo (HQ)" ? (
-                                <input 
-                                  placeholder="Type your Cell Group name"
-                                  className={`w-full rounded-xl py-3 pl-10 pr-4 text-sm focus:outline-none focus:ring-1 ${theme === "light" ? "bg-slate-50 border border-slate-300 text-slate-900 focus:border-royal-purple focus:ring-royal-purple/40" : "bg-black/45 border border-white/10 text-white focus:border-royal-purple focus:ring-royal-purple/40"}`}
+                              <>
+                                <select 
+                                  className={`w-full rounded-xl py-3 pl-10 pr-10 text-sm focus:outline-none focus:ring-1 appearance-none cursor-pointer transition-all ${theme === "light" ? "bg-slate-50 border border-slate-300 text-slate-900 focus:border-royal-purple focus:ring-royal-purple/40" : "bg-black/45 border border-white/10 text-white focus:border-royal-purple focus:ring-royal-purple/40"}`}
                                   value={regData.unitName}
                                   onChange={(e) => setRegData({...regData, unitName: e.target.value})}
-                                />
-                              ) : (
-                                <>
-                                  <select 
-                                    className={`w-full rounded-xl py-3 pl-10 pr-10 text-sm focus:outline-none focus:ring-1 appearance-none cursor-pointer transition-all ${theme === "light" ? "bg-slate-50 border border-slate-300 text-slate-900 focus:border-royal-purple focus:ring-royal-purple/40" : "bg-black/45 border border-white/10 text-white focus:border-royal-purple focus:ring-royal-purple/40"}`}
-                                    value={regData.unitName}
-                                    onChange={(e) => setRegData({...regData, unitName: e.target.value})}
-                                  >
-                                    <option value="" disabled className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Select {selectedRoles.includes('CELL_LEADER') ? 'Cell Location' : 'Department'}</option>
-                                    {selectedRoles.includes('CELL_LEADER') ? (
-                                      <>
-                                        <option value="Osong Ama Zone" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Osong Ama Zone</option>
-                                        <option value="Shelter Afrique Zone" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Shelter Afrique Zone</option>
-                                        <option value="Ewet Housing Zone" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Ewet Housing Zone</option>
-                                        <option value="Nwaniba Zone" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Nwaniba Zone</option>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <option value="Media" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Media</option>
-                                        <option value="The Living Portals (Choir)" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>The Living Portals (Choir)</option>
-                                        <option value="Technical" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Technical</option>
-                                        <option value="Ushering" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Ushering</option>
-                                        <option value="Pastoral Team / Greeters" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Pastoral Team / Greeters</option>
-                                        <option value="Evangelism & Missions" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Evangelism & Missions</option>
-                                        <option value="Welfare" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Welfare</option>
-                                        <option value="Children’s Church" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Children’s Church</option>
-                                        <option value="Teens Church" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Teens Church</option>
-                                        <option value="Intercessory" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Intercessory</option>
-                                        <option value="Protocol" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Protocol</option>
-                                        <option value="Follow-up" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Follow-up</option>
-                                        <option value="Pistis Art" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Pistis Art</option>
-                                        <option value="Sanctuary Keepers" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Sanctuary Keepers</option>
-                                      </>
-                                    )}
-                                  </select>
-                                  <div className={`absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-[10px] ${theme === "light" ? "text-slate-400" : "text-white/40"}`}>▼</div>
-                                </>
-                              )}
+                                >
+                                  <option value="" disabled className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Select Department</option>
+                                  <option value="Media" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Media</option>
+                                  <option value="The Living Portals (Choir)" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>The Living Portals (Choir)</option>
+                                  <option value="Technical" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Technical</option>
+                                  <option value="Ushering" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Ushering</option>
+                                  <option value="Pastoral Team / Greeters" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Pastoral Team / Greeters</option>
+                                  <option value="Evangelism & Missions" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Evangelism & Missions</option>
+                                  <option value="Welfare" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Welfare</option>
+                                  <option value="Children’s Church" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Children’s Church</option>
+                                  <option value="Teens Church" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Teens Church</option>
+                                  <option value="Intercessory" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Intercessory</option>
+                                  <option value="Protocol" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Protocol</option>
+                                  <option value="Follow-up" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Follow-up</option>
+                                  <option value="Pistis Art" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Pistis Art</option>
+                                  <option value="Sanctuary Keepers" className={theme === "light" ? "bg-white text-slate-900" : "bg-[#120524]"}>Sanctuary Keepers</option>
+                                </select>
+                                <div className={`absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-[10px] ${theme === "light" ? "text-slate-400" : "text-white/40"}`}>▼</div>
+                              </>
                             </div>
                           </div>
                        )}
@@ -1281,7 +1261,7 @@ export function Login() {
                             !(selectedRoles.length === 1 && selectedRoles[0] === 'GLOBAL_ADMIN') && (
                               !regData.country || 
                               !regData.branchName || 
-                              (selectedRoles.some(r => r !== 'GLOBAL_ADMIN' && r !== 'BRANCH_ADMIN') && !regData.unitName)
+                              (selectedRoles.includes('DEPT_LEADER') && !regData.unitName)
                             )
                           }
                           className="flex items-center gap-1.5 bg-royal-purple hover:bg-royal-purple/95 active:scale-95 text-white p-2.5 px-4 rounded-xl font-bold text-xs disabled:opacity-50 transition-all cursor-pointer font-sans"

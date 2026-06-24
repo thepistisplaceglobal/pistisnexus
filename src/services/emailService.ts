@@ -232,7 +232,8 @@ export const EmailService = {
         const { data, error } = await supabase
           .from("profiles")
           .select("email, full_name")
-          .like("role", "%GLOBAL_ADMIN%");
+          .like("role", "%GLOBAL_ADMIN%")
+          .eq("status", "APPROVED");
         
         if (!error && data && data.length > 0) {
           adminsToNotify = data;
@@ -243,10 +244,21 @@ export const EmailService = {
           .from("profiles")
           .select("email, full_name")
           .like("role", "%BRANCH_ADMIN%")
-          .eq("branch_name", branchName);
+          .eq("branch_name", branchName)
+          .eq("status", "APPROVED");
           
         if (!error && data && data.length > 0) {
           adminsToNotify = data;
+        } else {
+          // Fallback to Global Admins if no branch admins exist
+          const { data: globalAdmins } = await supabase
+            .from("profiles")
+            .select("email, full_name")
+            .like("role", "%GLOBAL_ADMIN%")
+            .eq("status", "APPROVED");
+          if (globalAdmins && globalAdmins.length > 0) {
+            adminsToNotify = globalAdmins;
+          }
         }
       }
     } catch (err) {
