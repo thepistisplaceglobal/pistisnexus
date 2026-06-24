@@ -1058,6 +1058,10 @@ export function Login() {
                                    uName = 'Foundation School';
                                  } else if (nextRoles.includes('HOME_CELL_COORD') && nextRoles.length === 1) {
                                    uName = 'Home Cell Administration';
+                                 } else if (nextRoles.includes('CELL_LEADER') && nextRoles.length === 1) {
+                                   uName = 'Cell Group';
+                                 } else if (nextRoles.includes('INTEREST_GROUP_LEADER') && nextRoles.length === 1) {
+                                   uName = 'Interest Group';
                                  }
                                  setRegData({...regData, role: nextRoles.join(','), unitName: uName});
                                }} 
