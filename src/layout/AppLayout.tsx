@@ -2,7 +2,6 @@ import { Outlet } from "react-router-dom";
 import { Sidebar } from "./Sidebar";
 import { BottomNav } from "./BottomNav";
 import { NotificationBell } from "@/components/ui/NotificationBell";
-import { OnboardingTour } from "@/components/ui/OnboardingTour";
 import { PwaInstallPrompt } from "@/components/ui/PwaInstallPrompt";
 import { SupabaseSyncIndicator } from "@/components/ui/SupabaseSyncIndicator";
 import { ShieldAlert, WifiOff, RefreshCcw, KeyRound, Eye, EyeOff, Lock, CheckCircle2 } from "lucide-react";
@@ -225,7 +224,6 @@ export function AppLayout() {
       </div>
 
       <BottomNav />
-      <OnboardingTour />
       <PwaInstallPrompt />
     </div>
   );
