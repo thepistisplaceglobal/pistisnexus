@@ -1,5 +1,6 @@
 import React, { useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { Analytics } from "@vercel/analytics/react";
 import { AppLayout } from "./layout/AppLayout";
 import { Dashboard } from "./pages/Dashboard";
 import { Branches } from "./pages/Branches";
@@ -251,6 +252,7 @@ export default function App() {
       </BrowserRouter>
       <InstallPrompt />
       <ConnectionToast />
+      <Analytics />
     </>
   );
 }
