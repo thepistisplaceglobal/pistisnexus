@@ -394,7 +394,40 @@ export function Login() {
           }
         }
       }
+
+      if (!profile) {
+        // Last-ditch self-healing effort through backend (bypasses RLS issues and mismatched IDs)
+        try {
+          const res = await fetch("/api/verify-profile", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: authData.user.email, authId: authData.user.id })
+          });
+          const backendData = await res.json();
+          if (backendData && backendData.status === "ok" && backendData.profile) {
+            profile = backendData.profile;
+          }
+        } catch (err) {
+          console.warn("Backend verify profile failed:", err);
+        }
+      }
         
+      if (!profile) {
+        // Ultimate fallback to offline records if everything else fails
+        try {
+          const localP = localStorage.getItem("local_profiles");
+          const list = localP ? JSON.parse(localP) : [];
+          const localUser = list.find((p: any) => 
+            p.email?.toLowerCase() === authData.user.email?.toLowerCase()
+          );
+          if (localUser) {
+            profile = localUser;
+          }
+        } catch (e) {
+          console.warn("Failed to check offline records during fallback:", e);
+        }
+      }
+
       if (!profile) {
         setErrorMsg("Leader profile not found. Please contact the church administration team.");
         setIsLoading(false);
@@ -503,11 +536,11 @@ export function Login() {
         return;
       } else if (msg.toLowerCase().includes("invalid api key") || msg.toLowerCase().includes("fetch") || msg.toLowerCase().includes("network")) {
         // Fallback to offline local registration mode seamlessly
-        userId = "offline-" + Math.random().toString(36).substring(2, 9);
+        userId = crypto.randomUUID();
         isOfflineFallback = true;
       } else {
         // Bypasses any rigid backend DB errors (Database error saving new user, triggers, duplicate auth records, etc.) for a completely smooth, resilient signup
-        userId = "re-registered-" + Math.random().toString(36).substring(2, 9);
+        userId = crypto.randomUUID();
         isReRegistrationBypass = true;
       }
     }

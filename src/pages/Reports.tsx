@@ -688,6 +688,59 @@ export function Reports() {
     doc.save(`Pistis_Report_${safeBranchName}_${safeUnitName}_${report.id.substring(0, 6)}.pdf`);
   };
 
+  const exportToCSV = () => {
+    let csvContent = "data:text/csv;charset=utf-8,";
+
+    if (user?.role === 'GLOBAL_ADMIN') {
+        csvContent += "Type,Branch Name,Submitted By,Status,Created At,Total Inflow,Total Expenses,Total Attendance\n";
+        const allBranches = [...livePendingBranches, ...liveArchivedBranches];
+        allBranches.forEach(report => {
+            const metrics = report.metrics || {};
+            const row = [
+                "Branch Report",
+                report.branch_name,
+                report.submitter_name,
+                report.status,
+                new Date(report.created_at).toLocaleDateString(),
+                metrics.totalInflow || 0,
+                metrics.totalExpenses || 0,
+                metrics.aggregatedAttendance || 0
+            ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(",");
+            csvContent += row + "\n";
+        });
+    } else {
+        csvContent += "Type,Unit Name,Unit Type,Branch Name,Submitted By,Status,Created At,Inflow,Expenses,Attendance,First Timers,New Converts\n";
+        const allUnits = liveAllUnitReports;
+        allUnits.forEach(report => {
+            const metrics = report.metrics || {};
+            const row = [
+                "Unit Report",
+                report.unit_name,
+                report.unit_type,
+                report.branch_name,
+                report.submitter_name,
+                report.status,
+                new Date(report.created_at).toLocaleDateString(),
+                metrics.inflow || 0,
+                metrics.expenses || 0,
+                metrics.attendance || 0,
+                metrics.firstTimers || 0,
+                metrics.newConverts || 0
+            ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(",");
+            csvContent += row + "\n";
+        });
+    }
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    const fileName = user?.role === 'GLOBAL_ADMIN' ? "Global_Branch_Reports.csv" : `${user?.branchName?.replace(/\s+/g, '_')}_Unit_Reports.csv`;
+    link.setAttribute("download", fileName);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="flex flex-col gap-6 md:gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
@@ -702,9 +755,14 @@ export function Reports() {
           <p className="text-lilac/80 font-medium">Reporting Progression System</p>
         </div>
         
-        <ActionButton onClick={generatePDFReport} className="gap-2">
-          <Download className="w-4 h-4" /> Print/Export
-        </ActionButton>
+        <div className="flex flex-wrap items-center gap-3">
+          <ActionButton onClick={exportToCSV} className="gap-2 bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 border border-emerald-500/30">
+            <FileText className="w-4 h-4" /> Export CSV
+          </ActionButton>
+          <ActionButton onClick={generatePDFReport} className="gap-2">
+            <Download className="w-4 h-4" /> Print/Export PDF
+          </ActionButton>
+        </div>
       </header>
 
       {['DEPT_LEADER', 'CELL_LEADER', 'INTEREST_GROUP_LEADER', 'FOUNDATION_SCHOOL'].includes(user?.role || '') && renderSubBranchView()}

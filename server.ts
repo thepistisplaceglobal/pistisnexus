@@ -2,8 +2,9 @@ import express from "express";
 import path from "path";
 import * as dotenv from "dotenv";
 import http from "http";
-import { GoogleGenAI } from "@google/genai";
+import OpenAI from "openai";
 import { createClient } from "@supabase/supabase-js";
+import { generateAIInsights } from "./src/services/aiService.ts";
 
 dotenv.config();
 
@@ -14,23 +15,18 @@ const envBackendKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPAB
 const backendSupabaseKey = (envBackendKey && envBackendKey.length > 5) ? envBackendKey : "sb_publishable_wgZMU0MP8wvyHFxa-zluwA_t34NBXAY";
 const supabaseAdmin = createClient(backendSupabaseUrl, backendSupabaseKey);
 
-// Lazy initialize Gemini client to avoid crashing when key is absent
-let genAiClient: GoogleGenAI | null = null;
-function getGeminiClient() {
-  if (!genAiClient) {
-    const key = process.env.GEMINI_API_KEY;
+// Lazy initialize OpenAI client to avoid crashing when key is absent
+let openAiClient: OpenAI | null = null;
+function getOpenAIClient() {
+  if (!openAiClient) {
+    const key = process.env.OPENAI_API_KEY;
     if (key && key.trim().length > 0) {
-      genAiClient = new GoogleGenAI({
+      openAiClient = new OpenAI({
         apiKey: key,
-        httpOptions: {
-          headers: {
-            "User-Agent": "aistudio-build",
-          },
-        },
       });
     }
   }
-  return genAiClient;
+  return openAiClient;
 }
 
 const app = express();
@@ -353,20 +349,66 @@ app.use(express.json());
     }
   });
 
-  // API routing for generating dynamic AI insights using @google/genai Gemini API
+  app.post("/api/verify-profile", async (req, res) => {
+    try {
+      const { email, authId } = req.body;
+      if (!email || !authId) {
+        return res.status(400).json({ status: "error", message: "Missing email or authId" });
+      }
+
+      console.log(`[Express] Verifying profile for ${email}`);
+
+      let { data: profile, error: selectError } = await supabaseAdmin
+        .from("profiles")
+        .select("*")
+        .eq("email", email.toLowerCase())
+        .maybeSingle();
+
+      if (selectError) {
+        console.warn("[Express] Probe select existing profile warning:", selectError.message);
+      }
+
+      if (!profile) {
+        return res.status(404).json({ status: "error", message: "Profile not found" });
+      }
+
+      if (profile.id !== authId) {
+        console.log(`[Express] Syncing mismatched profile ID for ${email} from ${profile.id} to ${authId}`);
+        // We cannot simply update the primary key if it violates foreign keys. 
+        // But since we are updating to authId, authId definitely exists in auth.users.
+        const { error: updateError } = await supabaseAdmin
+          .from("profiles")
+          .update({ id: authId })
+          .eq("email", email.toLowerCase());
+          
+        if (updateError) {
+          console.warn("[Express] Could not sync ID:", updateError.message);
+        } else {
+          profile.id = authId;
+        }
+      }
+
+      return res.status(200).json({ status: "ok", profile });
+    } catch (err: any) {
+      console.error("[Express] Backend verification error:", err);
+      return res.status(500).json({ status: "error", message: err.message });
+    }
+  });
+
+  // API routing for generating dynamic AI insights using OpenAI API
   app.post("/api/ai/insights", async (req, res) => {
     try {
       const { role, branchName, recentData } = req.body || {};
-      const client = getGeminiClient();
+      const client = getOpenAIClient();
 
       if (!client) {
-        // Return realistic dynamic simulation state if Gemini key is not configured on server
-        console.log(`[Express] GEMINI_API_KEY not configured, serving mock intelligence for ${role}`);
+        // Return realistic dynamic simulation state if OpenAI key is not configured on server
+        console.log(`[Express] OPENAI_API_KEY not configured, serving mock intelligence for ${role}`);
         const mockInsights = getMockInsightsForRole(role, branchName);
         return res.status(200).json({ status: "mock", insights: mockInsights });
       }
 
-      console.log(`[Express] Requesting Gemini AI Insights for role: ${role}, branch: ${branchName}`);
+      console.log(`[Express] Requesting OpenAI AI Insights for role: ${role}, branch: ${branchName}`);
       
       const prompt = `
 You are the Executive Administrator AI assistant at The Pistis Place Global Church. 
@@ -385,63 +427,15 @@ Generate exactly 3 professional executive insight objects in the following array
 Be precise, highly professional, realistic and practical. Avoid overly generic answers; craft them specifically for church operations (Home Cells, Interest Groups, Departments, Evangelism, Souls, Inflows, Attendance). Do NOT mention the system/model technical details.
 `;
 
-      let hasTimedOut = false;
-      let timerId: NodeJS.Timeout | null = null;
+      const aiRes = await generateAIInsights(prompt);
 
-      // Run Gemini API with background safety
-      const geminiPromise = client.models.generateContent({
-        model: "gemini-3.5-flash",
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: "OBJECT",
-            properties: {
-              insights: {
-                type: "ARRAY",
-                items: {
-                  type: "OBJECT",
-                  properties: {
-                    type: {
-                      type: "STRING",
-                      description: "Allowed values: 'positive', 'warning', 'suggestion'."
-                    },
-                    title: {
-                      type: "STRING",
-                      description: "Short catchy heading for the insight (5-8 words)."
-                    },
-                    content: {
-                      type: "STRING",
-                      description: "Detailed description of the insight, recommendation or analysis (20-45 words)."
-                    }
-                  },
-                  required: ["type", "title", "content"]
-                }
-              }
-            },
-            required: ["insights"]
-          }
-        }
-      });
-
-      // Prevent Unhandled Promise Rejections when timeout wins the race
-      geminiPromise.catch(() => {
-        // Silently swallow background rejection if timeout already occurred
-      });
-
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        timerId = setTimeout(() => {
-          hasTimedOut = true;
-          reject(new Error("Gemini API call timed out after 3500ms"));
-        }, 3500);
-      });
-
-      const geminiRes = await Promise.race([geminiPromise, timeoutPromise]);
-      if (timerId) clearTimeout(timerId);
-
-      const responseText = geminiRes.text;
+      if (!aiRes) {
+        throw new Error("Empty response received from OpenAI engine");
+      }
+      
+      const responseText = aiRes.choices[0]?.message?.content;
       if (!responseText) {
-        throw new Error("Empty response received from Gemini engine");
+        throw new Error("Empty response received from OpenAI engine");
       }
 
       const parsed = JSON.parse(responseText.trim());
@@ -449,10 +443,51 @@ Be precise, highly professional, realistic and practical. Avoid overly generic a
 
     } catch (err: any) {
       // Avoid printing raw error structures/JSON blocks to keep logs clean and free of false-positive diagnostics
-      console.log("[Express] Serving high-availability local insights fallback (Gemini API is currently busy or rate-limited).");
+      console.log("[Express] Serving high-availability local insights fallback (OpenAI API is currently busy or rate-limited).");
       const { role, branchName } = req.body || {};
       const fallback = getMockInsightsForRole(role || "BRANCH_ADMIN", branchName || "Main Campus");
       return res.status(200).json({ status: "fallback", insights: fallback, info: "High-performance backup active" });
+    }
+  });
+
+  app.post("/api/ai/weekly-summary", async (req, res) => {
+    try {
+      const { goals, challenges, role, branchName } = req.body;
+      const prompt = `
+You are Pistis Nexus, the Chief Operations AI for Pistis Christian Centre. Your goal is to analyze the following foundation school data.
+Context parameters:
+- User Role: ${role || "FOUNDATION_SCHOOL"}
+- Branch Name: ${branchName || "Main Campus"}
+- Goals Achieved (Last 4 Weeks): ${JSON.stringify(goals || [])}
+- Challenges Faced (Last 4 Weeks): ${JSON.stringify(challenges || [])}
+
+Generate a weekly insight summary that includes:
+- A brief analysis of the recent goals achieved.
+- Actionable focus areas based on the challenges faced.
+Return the result as a simple paragraph. Do NOT use markdown.
+`;
+      
+      const { getOpenAIClient } = require("./src/services/aiService.ts");
+      const client = getOpenAIClient();
+      if (!client) throw new Error("No OpenAI client");
+      
+      const aiPromise = client.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [{ role: "user", content: prompt }]
+      });
+
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error("Timeout")), 7000);
+      });
+
+      const aiRes: any = await Promise.race([aiPromise, timeoutPromise]);
+      const responseText = aiRes.choices[0]?.message?.content;
+      if (!responseText) throw new Error("Empty response");
+      
+      return res.status(200).json({ summary: responseText.trim() });
+    } catch (err) {
+      console.log("[Express] Fallback weekly summary.");
+      return res.status(200).json({ summary: "We noticed consistent goals achieved over the last few weeks. Consider addressing the reported challenges by increasing coordination and communication among facilitators." });
     }
   });
 

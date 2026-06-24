@@ -16,36 +16,46 @@ import {
   IdCard,
   Check,
   X,
-  Filter
+  Filter,
+  BrainCircuit,
+  Bell,
+  Eye
 } from "lucide-react";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { MetricCard } from "@/components/ui/MetricCard";
 import { useAppStore } from "@/store/useAppStore";
+import { supabase } from "@/lib/supabase";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface Candidate {
   id: string;
   name: string;
   email: string;
-  branch: "Uyo (HQ)" | "Calabar";
+  branch: string;
   stage: "ENROLLED" | "DOCTRINAL_CLASSES" | "EXAM_PHASE" | "INAUGURATED";
   score?: number;
-  enrollmentDate: string;
-  inaugurationDate?: string;
+  enrollment_date: string;
+  inauguration_date?: string;
 }
 
-const defaultCandidates: Candidate[] = [
-  { id: "fs-1", name: "Anietie Udoh", email: "anietie.udoh@gmail.com", branch: "Uyo (HQ)", stage: "EXAM_PHASE", score: 85, enrollmentDate: "2026-04-10" },
-  { id: "fs-2", name: "NseAbasi Ekong", email: "nse.ekong@outlook.com", branch: "Uyo (HQ)", stage: "DOCTRINAL_CLASSES", enrollmentDate: "2026-05-02" },
-  { id: "fs-3", name: "Theresa Bassey", email: "theresa.b@yahoo.com", branch: "Calabar", stage: "ENROLLED", enrollmentDate: "2026-06-05" },
-  { id: "fs-4", name: "Eyo Effiong", email: "eyo.effiong@gmail.com", branch: "Calabar", stage: "EXAM_PHASE", enrollmentDate: "2026-04-18" },
-  { id: "fs-5", name: "Gift Akpan", email: "gift.akpan@gmail.com", branch: "Uyo (HQ)", stage: "DOCTRINAL_CLASSES", enrollmentDate: "2026-05-12" },
-  { id: "fs-6", name: "Idorenyin Marcus", email: "id.marcus@gmail.com", branch: "Uyo (HQ)", stage: "INAUGURATED", score: 92, enrollmentDate: "2026-03-01", inaugurationDate: "2026-05-15" },
-  { id: "fs-7", name: "Mfonobong Sunday", email: "mfon.sunday@gmail.com", branch: "Calabar", stage: "INAUGURATED", score: 88, enrollmentDate: "2026-03-05", inaugurationDate: "2026-05-15" }
-];
+interface FSReport {
+  id: string;
+  week_number: number;
+  sunday_attendance: number;
+  tuesday_attendance: number;
+  goals_achieved: string;
+  challenges_faced: string;
+  coordinator_feedback?: string;
+  status: "PENDING_COORD" | "APPROVED" | "REJECTED";
+  branch_name: string;
+  created_at: string;
+}
 
 export function FoundationSchool() {
   const { user, theme } = useAppStore();
+  const [activeTab, setActiveTab] = useState<"CANDIDATES" | "REPORTS">("CANDIDATES");
   const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [reports, setReports] = useState<FSReport[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [branchFilter, setBranchFilter] = useState<string>("ALL");
   const [stageFilter, setStageFilter] = useState<string>("ALL");
@@ -54,100 +64,328 @@ export function FoundationSchool() {
   const [showEnrollModal, setShowEnrollModal] = useState(false);
   const [newStudentName, setNewStudentName] = useState("");
   const [newStudentEmail, setNewStudentEmail] = useState("");
-  const [newStudentBranch, setNewStudentBranch] = useState<"Uyo (HQ)" | "Calabar">("Uyo (HQ)");
+  const [newStudentBranch, setNewStudentBranch] = useState<string>("Uyo (HQ)");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Exam Score modal states
   const [showScoreModal, setShowScoreModal] = useState<Candidate | null>(null);
   const [examScoreInput, setExamScoreInput] = useState<string>("");
 
-  useEffect(() => {
-    const stored = localStorage.getItem("fs_candidates");
-    if (stored) {
-      try {
-        setCandidates(JSON.parse(stored));
-      } catch (e) {
-        setCandidates(defaultCandidates);
-      }
-    } else {
-      setCandidates(defaultCandidates);
-      localStorage.setItem("fs_candidates", JSON.stringify(defaultCandidates));
-      // Populate overall graduates as well to feed Dashboard live strength
-      const inaugurated = defaultCandidates.filter(c => c.stage === "INAUGURATED");
-      localStorage.setItem("fs_graduates", JSON.stringify(inaugurated));
-    }
-  }, []);
+  // New report modal states
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportWeekNumber, setReportWeekNumber] = useState(1);
+  const [reportSundayAttendance, setReportSundayAttendance] = useState(0);
+  const [reportTuesdayAttendance, setReportTuesdayAttendance] = useState(0);
+  const [reportGoalsAchieved, setReportGoalsAchieved] = useState("");
+  const [reportChallengesFaced, setReportChallengesFaced] = useState("");
 
-  const saveCandidates = (updated: Candidate[]) => {
-    setCandidates(updated);
-    localStorage.setItem("fs_candidates", JSON.stringify(updated));
-    // Save only inaugurated to separate key for dashboard aggregation
-    const inaugurated = updated.filter(c => c.stage === "INAUGURATED");
-    localStorage.setItem("fs_graduates", JSON.stringify(inaugurated));
+  const [notification, setNotification] = useState<{ message: string; type: "success" | "error" } | null>(null);
+  const [aiSummary, setAiSummary] = useState<string | null>(null);
+  const [isGeneratingAi, setIsGeneratingAi] = useState(false);
+  
+  // View Report detail modal states
+  const [selectedReport, setSelectedReport] = useState<FSReport | null>(null);
+  const [feedbackInput, setFeedbackInput] = useState("");
+  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+
+  useEffect(() => {
+    fetchCandidates();
+    fetchReports();
+    
+    // Real-time listener for report status updates
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'foundation_school_reports'
+        },
+        (payload) => {
+          const updatedReport = payload.new as FSReport;
+          // Only alert if we are the branch owner (Foundation School Leader for that branch)
+          if (user && updatedReport.branch_name === user.branchName) {
+            if (updatedReport.status === 'APPROVED' || updatedReport.status === 'REJECTED') {
+              setNotification({
+                message: `Your Week ${updatedReport.week_number} report was ${updatedReport.status}`,
+                type: updatedReport.status === 'APPROVED' ? 'success' : 'error'
+              });
+              setTimeout(() => setNotification(null), 5000);
+              
+              // Update local state if we are viewing it
+              setReports(prev => prev.map(r => r.id === updatedReport.id ? updatedReport : r));
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
+
+  const generateWeeklySummary = async () => {
+    if (reports.length === 0) return;
+    setIsGeneratingAi(true);
+    setAiSummary(null);
+    
+    // Take the last 4 reports
+    const recentReports = reports.slice(0, 4);
+    const goals = recentReports.map(r => r.goals_achieved).filter(Boolean);
+    const challenges = recentReports.map(r => r.challenges_faced).filter(Boolean);
+    
+    try {
+      const response = await fetch('/api/ai/weekly-summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          goals,
+          challenges,
+          role: user?.role,
+          branchName: user?.branchName
+        })
+      });
+      const data = await response.json();
+      if (data.summary) {
+        setAiSummary(data.summary);
+      }
+    } catch (err) {
+      console.error("Failed to generate summary", err);
+      setAiSummary("Could not generate insights at this time.");
+    } finally {
+      setIsGeneratingAi(false);
+    }
   };
 
-  const handleEnroll = (e: React.FormEvent) => {
+  const fetchReports = async () => {
+    try {
+      let query = supabase.from("foundation_school_reports").select("*").order('created_at', { ascending: false });
+      
+      const isGlobalAdmin = user?.role === "GLOBAL_ADMIN" || user?.roles?.includes("GLOBAL_ADMIN");
+      if (!isGlobalAdmin && user?.branchName) {
+        query = query.eq("branch_name", user.branchName);
+      }
+      
+      const { data, error } = await query;
+      if (error) {
+        console.error("Error fetching reports:", error);
+      } else if (data) {
+        setReports(data as FSReport[]);
+      }
+    } catch (err) {
+      console.error("Failed to load reports", err);
+    }
+  };
+
+  const fetchCandidates = async () => {
+    try {
+      let query = supabase.from("foundation_school_candidates").select("*").order('created_at', { ascending: false });
+      
+      // Admin limits to their branch unless global
+      const isGlobalAdmin = user?.role === "GLOBAL_ADMIN" || user?.roles?.includes("GLOBAL_ADMIN");
+      if (!isGlobalAdmin && user?.branchName) {
+        query = query.eq("branch", user.branchName);
+      }
+      
+      const { data, error } = await query;
+      if (error) {
+        console.error("Error fetching candidates:", error);
+      } else if (data) {
+        setCandidates(data as Candidate[]);
+        
+        // Populate local graduates for dashboard integration if needed
+        const inaugurated = (data as Candidate[]).filter(c => c.stage === "INAUGURATED");
+        localStorage.setItem("fs_graduates", JSON.stringify(inaugurated));
+      }
+    } catch (err) {
+      console.error("Failed to load candidates", err);
+    }
+  };
+
+  const handleSubmitReport = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+
+    try {
+      const { data, error } = await supabase.from("foundation_school_reports").insert([{
+        week_number: reportWeekNumber,
+        sunday_attendance: reportSundayAttendance,
+        tuesday_attendance: reportTuesdayAttendance,
+        goals_achieved: reportGoalsAchieved,
+        challenges_faced: reportChallengesFaced,
+        branch_name: user?.branchName || "Uyo (HQ)",
+        status: "PENDING_COORD"
+      }]).select();
+
+      if (error) {
+        console.error("Error submitting report:", error);
+        alert("Failed to submit report.");
+      } else if (data) {
+        setReports(prev => [data[0] as FSReport, ...prev]);
+        setReportWeekNumber(1);
+        setReportSundayAttendance(0);
+        setReportTuesdayAttendance(0);
+        setReportGoalsAchieved("");
+        setReportChallengesFaced("");
+        setShowReportModal(false);
+      }
+    } catch (err) {
+      console.error("Report submission failed:", err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSubmitFeedback = async () => {
+    if (!selectedReport || !feedbackInput.trim()) return;
+    setIsSubmittingFeedback(true);
+    try {
+      const { error } = await supabase.from("foundation_school_reports")
+        .update({ coordinator_feedback: feedbackInput })
+        .eq("id", selectedReport.id);
+        
+      if (!error) {
+        setReports(prev => prev.map(r => r.id === selectedReport.id ? { ...r, coordinator_feedback: feedbackInput } : r));
+        setSelectedReport(prev => prev ? { ...prev, coordinator_feedback: feedbackInput } : null);
+        setFeedbackInput("");
+      } else {
+        console.error("Error submitting feedback:", error);
+      }
+    } catch (err) {
+      console.error("Feedback submission failed:", err);
+    } finally {
+      setIsSubmittingFeedback(false);
+    }
+  };
+
+  const handleUpdateReportStatus = async (reportId: string, newStatus: "APPROVED" | "REJECTED") => {
+    try {
+      const { error } = await supabase.from("foundation_school_reports")
+        .update({ status: newStatus })
+        .eq("id", reportId);
+        
+      if (!error) {
+        setReports(prev => prev.map(r => r.id === reportId ? { ...r, status: newStatus } : r));
+      } else {
+        console.error("Error updating report status:", error);
+      }
+    } catch (err) {
+      console.error("Status update failed:", err);
+    }
+  };
+
+  const handleEnroll = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newStudentName.trim() || !newStudentEmail.trim()) return;
+    setIsSubmitting(true);
 
-    const newStudent: Candidate = {
-      id: `fs-${Date.now()}`,
-      name: newStudentName,
-      email: newStudentEmail,
-      branch: newStudentBranch,
-      stage: "ENROLLED",
-      enrollmentDate: new Date().toISOString().split('T')[0]
-    };
+    try {
+      const { data, error } = await supabase.from("foundation_school_candidates").insert([{
+        name: newStudentName,
+        email: newStudentEmail,
+        branch: newStudentBranch,
+        stage: "ENROLLED",
+        enrollment_date: new Date().toISOString().split('T')[0]
+      }]).select();
 
-    const updated = [newStudent, ...candidates];
-    saveCandidates(updated);
-
-    // Reset fields
-    setNewStudentName("");
-    setNewStudentEmail("");
-    setShowEnrollModal(false);
-  };
-
-  const handlePromoteStage = (candidateId: string) => {
-    const updated = candidates.map(c => {
-      if (c.id === candidateId) {
-        if (c.stage === "ENROLLED") {
-          return { ...c, stage: "DOCTRINAL_CLASSES" as const };
-        } else if (c.stage === "DOCTRINAL_CLASSES") {
-          return { ...c, stage: "EXAM_PHASE" as const };
-        } else if (c.stage === "EXAM_PHASE") {
-          // Open exam score modal
-          setShowScoreModal(c);
-          setExamScoreInput(String(c.score || ""));
-          return c;
-        }
-        return c;
+      if (error) {
+        console.error("Error enrolling candidate:", error);
+        alert("Failed to enroll candidate.");
+      } else if (data) {
+        setCandidates(prev => [data[0] as Candidate, ...prev]);
+        setNewStudentName("");
+        setNewStudentEmail("");
+        setShowEnrollModal(false);
       }
-      return c;
-    });
-    if (showScoreModal === null) {
-      saveCandidates(updated);
+    } catch (err) {
+      console.error("Enrollment failed:", err);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleSaveExamScore = () => {
+  const handlePromoteStage = async (candidateId: string) => {
+    const candidate = candidates.find(c => c.id === candidateId);
+    if (!candidate) return;
+
+    let nextStage: Candidate["stage"] = candidate.stage;
+    
+    if (candidate.stage === "ENROLLED") {
+      nextStage = "DOCTRINAL_CLASSES";
+    } else if (candidate.stage === "DOCTRINAL_CLASSES") {
+      nextStage = "EXAM_PHASE";
+    } else if (candidate.stage === "EXAM_PHASE") {
+      setShowScoreModal(candidate);
+      setExamScoreInput(String(candidate.score || ""));
+      return;
+    }
+
+    if (nextStage !== candidate.stage) {
+      try {
+        const { error } = await supabase.from("foundation_school_candidates")
+          .update({ stage: nextStage })
+          .eq("id", candidateId);
+          
+        if (!error) {
+          setCandidates(prev => prev.map(c => c.id === candidateId ? { ...c, stage: nextStage } : c));
+        } else {
+          console.error("Error updating stage:", error);
+        }
+      } catch (err) {
+        console.error("Promotion failed", err);
+      }
+    }
+  };
+
+  const handleSaveExamScore = async () => {
     if (!showScoreModal) return;
     const scoreVal = parseInt(examScoreInput, 10);
     if (isNaN(scoreVal) || scoreVal < 0 || scoreVal > 100) return alert("Please enter a valid score (0-100)");
 
-    const updated = candidates.map(c => {
-      if (c.id === showScoreModal.id) {
-        return { 
-          ...c, 
-          score: scoreVal,
-          stage: scoreVal >= 60 ? "INAUGURATED" as const : "EXAM_PHASE" as const,
-          inaugurationDate: scoreVal >= 60 ? new Date().toISOString().split('T')[0] : undefined
-        };
-      }
-      return c;
-    });
+    setIsSubmitting(true);
+    try {
+      const isPass = scoreVal >= 60;
+      const nextStage = isPass ? "INAUGURATED" : "EXAM_PHASE";
+      const inaugDate = isPass ? new Date().toISOString().split('T')[0] : null;
 
-    saveCandidates(updated);
-    setShowScoreModal(null);
+      const { error } = await supabase.from("foundation_school_candidates")
+        .update({ 
+          score: scoreVal, 
+          stage: nextStage, 
+          inauguration_date: inaugDate 
+        })
+        .eq("id", showScoreModal.id);
+
+      if (!error) {
+        const updated = candidates.map(c => {
+          if (c.id === showScoreModal.id) {
+            return { 
+              ...c, 
+              score: scoreVal,
+              stage: nextStage as any,
+              inauguration_date: inaugDate || undefined
+            };
+          }
+          return c;
+        });
+        setCandidates(updated);
+        
+        // Update local graduates cache
+        const inaugurated = updated.filter(c => c.stage === "INAUGURATED");
+        localStorage.setItem("fs_graduates", JSON.stringify(inaugurated));
+        
+        setShowScoreModal(null);
+      } else {
+        console.error("Error saving score:", error);
+        alert("Failed to save score.");
+      }
+    } catch (err) {
+      console.error("Save score failed", err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Quick stats calculations
@@ -193,6 +431,15 @@ export function FoundationSchool() {
   return (
     <div className="flex flex-col gap-6 md:gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       
+      {notification && (
+        <div className={`p-4 rounded-xl border flex items-center gap-3 ${
+          notification.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
+        }`}>
+          <Bell className="w-5 h-5 shrink-0" />
+          <span className="text-sm font-semibold">{notification.message}</span>
+        </div>
+      )}
+
       {/* Header */}
       <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
@@ -306,16 +553,40 @@ export function FoundationSchool() {
         </div>
       </section>
 
-      {/* Search and Filters Table Layout */}
-      <section className="w-full">
-        <GlassCard className="p-0 border overflow-hidden">
-          
-          {/* Header Controls */}
-          <div className="p-5 md:p-6 border-b border-light-purple/10 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center bg-[#070112]/40">
-            <div>
-              <h3 className="text-white font-bold text-base md:text-lg mb-0.5">Enrolled Candidate Database</h3>
-              <p className="text-lilac/70 text-xs">Authorize progression and member inaugurations</p>
-            </div>
+      {/* Navigation Tabs */}
+      <div className="flex items-center gap-4 border-b border-light-purple/10 pb-2">
+        <button
+          onClick={() => setActiveTab("CANDIDATES")}
+          className={`px-4 py-2 font-medium text-sm transition-all border-b-2 ${
+            activeTab === "CANDIDATES"
+              ? "text-white border-[#B193FB]"
+              : "text-lilac/50 border-transparent hover:text-lilac"
+          }`}
+        >
+          Candidate Database
+        </button>
+        <button
+          onClick={() => setActiveTab("REPORTS")}
+          className={`px-4 py-2 font-medium text-sm transition-all border-b-2 ${
+            activeTab === "REPORTS"
+              ? "text-white border-[#B193FB]"
+              : "text-lilac/50 border-transparent hover:text-lilac"
+          }`}
+        >
+          Foundation School Reports
+        </button>
+      </div>
+
+      {activeTab === "CANDIDATES" && (
+        <section className="w-full">
+          <GlassCard className="p-0 border overflow-hidden">
+            
+            {/* Header Controls */}
+            <div className="p-5 md:p-6 border-b border-light-purple/10 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center bg-[#070112]/40">
+              <div>
+                <h3 className="text-white font-bold text-base md:text-lg mb-0.5">Enrolled Candidate Database</h3>
+                <p className="text-lilac/70 text-xs">Authorize progression and member inaugurations</p>
+              </div>
 
             <div className="flex flex-wrap gap-2.5 items-center w-full md:w-auto">
               
@@ -332,7 +603,7 @@ export function FoundationSchool() {
               </div>
 
               {/* Branch Filter (HQ vs Calabar) - only displayed for top level admins */}
-              {user?.role === "GLOBAL_ADMIN" && (
+              {(user?.role === "GLOBAL_ADMIN" || user?.roles?.includes("GLOBAL_ADMIN")) && (
                 <div id="fs-branch-filter-container">
                   <select
                     value={branchFilter}
@@ -413,16 +684,16 @@ export function FoundationSchool() {
                         <span className={`inline-block py-1 px-2.5 rounded-full border text-[10px] font-bold tracking-wide leading-none ${stageObj.class}`}>
                           {stageObj.text}
                         </span>
-                        {candidate.inaugurationDate && (
+                        {candidate.inauguration_date && (
                           <div className="text-[10px] text-emerald-400 mt-1 flex items-center gap-1">
                             <Clock className="w-3 h-3" />
-                            <span>Inaugurated: {candidate.inaugurationDate}</span>
+                            <span>Inaugurated: {candidate.inauguration_date}</span>
                           </div>
                         )}
-                        {!candidate.inaugurationDate && (
+                        {!candidate.inauguration_date && (
                           <div className="text-[10px] text-lilac/50 mt-1 flex items-center gap-1">
                             <Clock className="w-3 h-3" />
-                            <span>Enrolled: {candidate.enrollmentDate}</span>
+                            <span>Enrolled: {candidate.enrollment_date}</span>
                           </div>
                         )}
                       </td>
@@ -480,6 +751,166 @@ export function FoundationSchool() {
 
         </GlassCard>
       </section>
+      )}
+
+      {activeTab === "REPORTS" && (
+        <section className="w-full space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <GlassCard className="col-span-1 lg:col-span-2 p-6 flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-white font-bold text-base">Weekly Attendance Trends</h3>
+              </div>
+              <div className="h-64 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={[...reports].reverse()} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
+                    <XAxis dataKey="week_number" stroke="#ffffff50" tickFormatter={(val) => `W${val}`} fontSize={12} />
+                    <YAxis stroke="#ffffff50" fontSize={12} />
+                    <Tooltip contentStyle={{ backgroundColor: '#110524', border: '1px solid #ffffff20', borderRadius: '8px' }} />
+                    <Line type="monotone" dataKey="sunday_attendance" name="Sunday" stroke="#34d399" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                    <Line type="monotone" dataKey="tuesday_attendance" name="Tuesday" stroke="#818cf8" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </GlassCard>
+
+            <GlassCard className="col-span-1 p-6 flex flex-col gap-4 bg-gradient-to-br from-[#110524] to-black">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <BrainCircuit className="w-5 h-5 text-emerald-400" />
+                  <h3 className="text-white font-bold text-base">Weekly Insight Summary</h3>
+                </div>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto text-sm text-lilac/80 bg-black/30 rounded-xl p-4 border border-white/5 leading-relaxed custom-scrollbar relative">
+                {isGeneratingAi ? (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-emerald-400 animate-pulse font-medium text-xs tracking-wider uppercase">Generating Insights...</span>
+                  </div>
+                ) : aiSummary ? (
+                  <p>{aiSummary}</p>
+                ) : (
+                  <div className="text-center text-lilac/40 italic flex flex-col items-center justify-center h-full gap-2">
+                    <p>No insights generated yet.</p>
+                  </div>
+                )}
+              </div>
+
+              <button 
+                onClick={generateWeeklySummary}
+                disabled={isGeneratingAi || reports.length === 0}
+                className="w-full py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold text-xs tracking-wide transition-colors disabled:opacity-50"
+              >
+                Generate Summary
+              </button>
+            </GlassCard>
+          </div>
+
+          <GlassCard className="p-0 border overflow-hidden">
+            <div className="p-5 md:p-6 border-b border-light-purple/10 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center bg-[#070112]/40">
+              <div>
+                <h3 className="text-white font-bold text-base md:text-lg mb-0.5">Foundation School Reports</h3>
+                <p className="text-lilac/70 text-xs">Review class modules and attendance reports</p>
+              </div>
+
+              <div className="flex gap-2.5 items-center">
+                <button 
+                  onClick={() => setShowReportModal(true)}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-400 text-white font-bold text-sm tracking-wide shadow-lg hover:brightness-110 active:scale-95 transition-all"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Submit Report</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto w-full">
+              <table className="w-full text-left border-collapse min-w-[700px]">
+                <thead>
+                  <tr className="border-b border-light-purple/10 bg-black/20 text-[10px] uppercase font-bold tracking-widest text-lilac/70">
+                    <th className="py-4 px-6 whitespace-nowrap">Week & Status</th>
+                    <th className="py-4 px-6 text-center whitespace-nowrap">Branch</th>
+                    <th className="py-4 px-6 text-center whitespace-nowrap">Sunday</th>
+                    <th className="py-4 px-6 text-center whitespace-nowrap">Tuesday</th>
+                    <th className="py-4 px-6 whitespace-nowrap">Goals & Challenges</th>
+                    <th className="py-4 px-6 text-center whitespace-nowrap">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-light-purple/5">
+                  {reports.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="py-12 text-center text-lilac/50 italic text-sm">
+                        No reports submitted yet.
+                      </td>
+                    </tr>
+                  )}
+                  {reports.map(report => (
+                    <tr key={report.id} className="hover:bg-white/[0.02] transition-colors group">
+                      <td className="py-4 px-6">
+                        <div className="flex flex-col gap-2">
+                          <h4 className="font-bold text-white text-sm">Week {report.week_number}</h4>
+                          <span className={`inline-block py-0.5 px-2 rounded-full border text-[10px] font-bold tracking-wide w-fit leading-none ${
+                            report.status === "APPROVED" ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/20" :
+                            report.status === "REJECTED" ? "bg-rose-500/15 text-rose-400 border-rose-500/20" :
+                            "bg-amber-500/15 text-amber-400 border-amber-500/20"
+                          }`}>
+                            {report.status.replace("_", " ")}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="py-4 px-6 text-center text-xs font-semibold text-white/90">
+                        {report.branch_name}
+                      </td>
+                      <td className="py-4 px-6 text-center font-mono text-sm font-bold text-emerald-400">
+                        {report.sunday_attendance}
+                      </td>
+                      <td className="py-4 px-6 text-center font-mono text-sm font-bold text-emerald-400">
+                        {report.tuesday_attendance}
+                      </td>
+                      <td className="py-4 px-6 text-xs text-lilac/80">
+                        <div className="line-clamp-1 mb-1"><span className="font-semibold text-white">Goals:</span> {report.goals_achieved || "N/A"}</div>
+                        <div className="line-clamp-1"><span className="font-semibold text-white">Challenges:</span> {report.challenges_faced || "N/A"}</div>
+                      </td>
+                      <td className="py-4 px-6 text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            onClick={() => {
+                              setSelectedReport(report);
+                              setFeedbackInput(report.coordinator_feedback || "");
+                            }}
+                            className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 transition-colors"
+                            title="View Details"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                          {(user?.role === "GLOBAL_ADMIN" || user?.role === "FOUNDATION_SCHOOL" || user?.roles?.includes("GLOBAL_ADMIN")) && report.status === "PENDING_COORD" && (
+                            <>
+                              <button
+                                onClick={() => handleUpdateReportStatus(report.id, "APPROVED")}
+                                className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-colors"
+                                title="Approve Report"
+                              >
+                                <Check className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleUpdateReportStatus(report.id, "REJECTED")}
+                                className="p-1.5 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition-colors"
+                                title="Reject Report"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </GlassCard>
+        </section>
+      )}
 
       {/* Modal - Enroll New Student */}
       {showEnrollModal && (
@@ -525,7 +956,7 @@ export function FoundationSchool() {
                 />
               </div>
 
-              {user?.role === "GLOBAL_ADMIN" && (
+              {(user?.role === "GLOBAL_ADMIN" || user?.roles?.includes("GLOBAL_ADMIN")) && (
                 <div className="space-y-1.5">
                   <label className="text-[10px] uppercase font-bold tracking-wider text-lilac/70">Expression Branch</label>
                   <select 
@@ -541,9 +972,10 @@ export function FoundationSchool() {
 
               <button 
                 type="submit"
-                className="w-full mt-4 rounded-xl py-3 bg-gradient-to-r from-royal-purple to-[#818cf8] text-white font-bold text-sm tracking-wide shadow-lg active:scale-95 transition-all"
+                disabled={isSubmitting}
+                className="w-full mt-4 rounded-xl py-3 bg-gradient-to-r from-royal-purple to-[#818cf8] text-white font-bold text-sm tracking-wide shadow-lg active:scale-95 transition-all disabled:opacity-50"
               >
-                Enroll New Candidate
+                {isSubmitting ? "Enrolling..." : "Enroll New Candidate"}
               </button>
 
             </form>
@@ -592,12 +1024,183 @@ export function FoundationSchool() {
 
               <button 
                 onClick={handleSaveExamScore}
-                className="w-full mt-4 rounded-xl py-3 bg-gradient-to-r from-emerald-600 to-teal-400 text-white font-bold text-sm tracking-wide shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2"
+                disabled={isSubmitting}
+                className="w-full mt-4 rounded-xl py-3 bg-gradient-to-r from-emerald-600 to-teal-400 text-white font-bold text-sm tracking-wide shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 <Check className="w-4 h-4" />
-                <span>Submit Score & Inaugurate</span>
+                <span>{isSubmitting ? "Saving..." : "Submit Score & Inaugurate"}</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal - Submit Report */}
+      {showReportModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className={`w-full max-w-md p-6 rounded-2xl border shadow-2xl relative overflow-hidden backdrop-blur-xl animate-in fade-in zoom-in-95 duration-250 ${
+            theme === "light" ? "bg-white border-slate-200 text-slate-900" : "bg-[#110524]/90 border-white/10 text-white"
+          }`}>
+            <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-emerald-400 via-teal-400 to-emerald-600" />
+            
+            <header className="flex justify-between items-center mb-6">
+              <div className="flex items-center gap-2">
+                <BookOpen className="w-5 h-5 text-emerald-400" />
+                <h3 className="font-bold text-lg">Submit Class Report</h3>
+              </div>
+              <button onClick={() => setShowReportModal(false)} className="p-1 rounded-full hover:bg-white/10 text-white/50 hover:text-white transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </header>
+
+            <form onSubmit={handleSubmitReport} className="space-y-4">
+              
+              <div className="space-y-1.5">
+                <label className="text-[10px] uppercase font-bold tracking-wider text-lilac/70">Week Number</label>
+                <input 
+                  type="number" 
+                  min="1"
+                  value={reportWeekNumber}
+                  onChange={(e) => setReportWeekNumber(parseInt(e.target.value))}
+                  placeholder="e.g. 1"
+                  required
+                  className="w-full rounded-xl py-2.5 px-4 text-xs font-medium focus:outline-none focus:ring-1 transition-all border border-white/10 bg-white/5 text-white focus:ring-[#B193FB] focus:border-[#B193FB]"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] uppercase font-bold tracking-wider text-lilac/70">Sunday Attendance</label>
+                  <input 
+                    type="number" 
+                    min="0"
+                    value={reportSundayAttendance}
+                    onChange={(e) => setReportSundayAttendance(parseInt(e.target.value))}
+                    required
+                    className="w-full rounded-xl py-2.5 px-4 text-xs font-medium focus:outline-none focus:ring-1 transition-all border border-white/10 bg-white/5 text-white focus:ring-[#B193FB] focus:border-[#B193FB]"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] uppercase font-bold tracking-wider text-lilac/70">Tuesday Attendance</label>
+                  <input 
+                    type="number" 
+                    min="0"
+                    value={reportTuesdayAttendance}
+                    onChange={(e) => setReportTuesdayAttendance(parseInt(e.target.value))}
+                    required
+                    className="w-full rounded-xl py-2.5 px-4 text-xs font-medium focus:outline-none focus:ring-1 transition-all border border-white/10 bg-white/5 text-white focus:ring-[#B193FB] focus:border-[#B193FB]"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] uppercase font-bold tracking-wider text-lilac/70">Goals Achieved</label>
+                <textarea 
+                  value={reportGoalsAchieved}
+                  onChange={(e) => setReportGoalsAchieved(e.target.value)}
+                  placeholder="What were the goals and what was achieved?"
+                  required
+                  rows={2}
+                  className="w-full rounded-xl py-2.5 px-4 text-xs font-medium focus:outline-none focus:ring-1 transition-all border border-white/10 bg-white/5 text-white focus:ring-[#B193FB] focus:border-[#B193FB]"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] uppercase font-bold tracking-wider text-lilac/70">Challenges Faced</label>
+                <textarea 
+                  value={reportChallengesFaced}
+                  onChange={(e) => setReportChallengesFaced(e.target.value)}
+                  placeholder="Were there any challenges?"
+                  required
+                  rows={2}
+                  className="w-full rounded-xl py-2.5 px-4 text-xs font-medium focus:outline-none focus:ring-1 transition-all border border-white/10 bg-white/5 text-white focus:ring-[#B193FB] focus:border-[#B193FB]"
+                />
+              </div>
+
+              <button 
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full mt-4 rounded-xl py-3 bg-gradient-to-r from-emerald-600 to-teal-400 text-white font-bold text-sm tracking-wide shadow-lg active:scale-95 transition-all disabled:opacity-50"
+              >
+                {isSubmitting ? "Submitting..." : "Submit class report"}
+              </button>
+
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal - View Report Details */}
+      {selectedReport && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className={`w-full max-w-md p-6 rounded-2xl border shadow-2xl relative overflow-hidden backdrop-blur-xl animate-in fade-in zoom-in-95 duration-250 ${
+            theme === "light" ? "bg-white border-slate-200 text-slate-900" : "bg-[#110524]/90 border-white/10 text-white"
+          }`}>
+            <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-indigo-500 to-purple-500" />
+            
+            <header className="flex justify-between items-center mb-6">
+              <div className="flex items-center gap-2">
+                <Eye className="w-5 h-5 text-indigo-400" />
+                <h3 className="font-bold text-lg">Report Details (Week {selectedReport.week_number})</h3>
+              </div>
+              <button onClick={() => {
+                setSelectedReport(null);
+                setFeedbackInput("");
+              }} className="p-1 rounded-full hover:bg-white/10 text-white/50 hover:text-white transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </header>
+
+            <div className="space-y-4 mb-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-white/5 p-3 rounded-xl border border-white/10">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-lilac/70 block mb-1">Sunday Attendance</span>
+                  <span className="font-mono text-lg font-bold text-emerald-400">{selectedReport.sunday_attendance}</span>
+                </div>
+                <div className="bg-white/5 p-3 rounded-xl border border-white/10">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-lilac/70 block mb-1">Tuesday Attendance</span>
+                  <span className="font-mono text-lg font-bold text-emerald-400">{selectedReport.tuesday_attendance}</span>
+                </div>
+              </div>
+
+              <div>
+                <span className="text-[10px] uppercase font-bold tracking-wider text-lilac/70 block mb-1">Goals Achieved</span>
+                <p className="text-sm text-white/90 bg-white/5 p-3 rounded-xl border border-white/10 leading-relaxed">{selectedReport.goals_achieved || "N/A"}</p>
+              </div>
+
+              <div>
+                <span className="text-[10px] uppercase font-bold tracking-wider text-lilac/70 block mb-1">Challenges Faced</span>
+                <p className="text-sm text-white/90 bg-white/5 p-3 rounded-xl border border-white/10 leading-relaxed">{selectedReport.challenges_faced || "N/A"}</p>
+              </div>
+
+              <div>
+                <span className="text-[10px] uppercase font-bold tracking-wider text-lilac/70 block mb-1">Coordinator Feedback</span>
+                {(user?.role === "GLOBAL_ADMIN" || user?.role === "BRANCH_ADMIN") ? (
+                  <div className="space-y-3">
+                    <textarea 
+                      value={feedbackInput}
+                      onChange={(e) => setFeedbackInput(e.target.value)}
+                      placeholder="Enter feedback for the foundation school leader..."
+                      rows={3}
+                      className="w-full rounded-xl py-2.5 px-4 text-sm focus:outline-none focus:ring-1 transition-all border border-indigo-500/30 bg-indigo-500/5 text-white focus:ring-indigo-500 focus:border-indigo-500"
+                    />
+                    <button 
+                      onClick={handleSubmitFeedback}
+                      disabled={isSubmittingFeedback || !feedbackInput.trim() || feedbackInput === selectedReport.coordinator_feedback}
+                      className="w-full rounded-xl py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm tracking-wide shadow-lg active:scale-95 transition-all disabled:opacity-50"
+                    >
+                      {isSubmittingFeedback ? "Saving..." : "Save Feedback"}
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-sm text-white/90 bg-indigo-500/10 p-3 rounded-xl border border-indigo-500/20 leading-relaxed">
+                    {selectedReport.coordinator_feedback || <span className="text-lilac/50 italic">No feedback provided yet.</span>}
+                  </p>
+                )}
+              </div>
+            </div>
+
           </div>
         </div>
       )}

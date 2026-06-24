@@ -63,26 +63,57 @@ export default function App() {
 
     const verifyUserSession = async () => {
       // Offline/master/seed logins bypass DB verification
-      if (user.id === "home-cell-coord-master") return;
+      if (user.id.includes("-master")) return;
 
-      const validateOffline = () => {
+      const checkOfflineStatus = () => {
         const localP = localStorage.getItem("local_profiles");
         if (localP) {
           const list = JSON.parse(localP);
           const localProfile = list.find((p: any) => p.id === user.id || p.email === user.email);
-          if (localProfile && (localProfile.status === "PENDING" || localProfile.status === "REJECTED")) {
+          if (localProfile) {
+             if (localProfile.status === "PENDING" || localProfile.status === "REJECTED") return "INVALID";
+             if (localProfile.status === "APPROVED") return "VALID";
+          }
+        }
+        return "NOT_FOUND";
+      };
+
+      const validateOffline = () => {
+        const status = checkOfflineStatus();
+        if (status === "INVALID") {
             console.log("Local offline profile status is not approved.");
             useAppStore.getState().logout();
             return true;
-          }
         }
         return false;
       };
+
+      if (user.id.startsWith("offline-") || user.id.startsWith("re-registered-")) {
+        validateOffline();
+        return;
+      }
 
       try {
         if (!navigator.onLine) {
           validateOffline();
           return;
+        }
+
+        // Ensure Supabase auth session is fully loaded before making RLS-restricted queries
+        const { data: { session } } = await supabase.auth.getSession();
+
+        if (!session) {
+           // If Supabase session is missing (e.g. expired or offline fallback)
+           const offlineStatus = checkOfflineStatus();
+           if (offlineStatus === "VALID") {
+              // Valid offline profile exists, allow session to continue without hitting DB anonymously
+              return;
+           } else {
+              // Session expired and no valid offline fallback. We should log them out.
+              console.log("Supabase session expired and no valid offline fallback. Logging out...");
+              useAppStore.getState().logout();
+              return;
+           }
         }
 
         const { data: profile, error } = await supabase
@@ -93,11 +124,18 @@ export default function App() {
 
         if (error) {
           console.warn("Failed to verify user profile state:", error);
-          if (validateOffline()) return;
+          validateOffline();
+          return;
         }
 
         // If no profile, or if status is not APPROVED, sign out!
         if (!profile || profile.status === "PENDING" || profile.status === "REJECTED") {
+          // Double check if there's an approved offline profile before kicking them out
+          if (checkOfflineStatus() === "VALID") {
+            console.log("Profile not found or pending in DB, but locally APPROVED. Allowing session...");
+            return;
+          }
+
           console.log("Active user profile is no longer active (status: " + (profile?.status || 'deleted') + "). Logging out...");
           
           try {
@@ -153,6 +191,7 @@ export default function App() {
         { event: "*", schema: "public", table: "profiles" },
         (payload) => {
           NotificationService.handleRealtimeProfileEvent(payload, user);
+          useAppStore.getState().fetchProfiles(user);
         }
       )
       .subscribe();

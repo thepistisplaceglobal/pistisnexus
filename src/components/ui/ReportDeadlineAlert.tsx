@@ -13,7 +13,7 @@ export function ReportDeadlineAlert() {
   useEffect(() => {
     if (!user) return;
     const isBranchAdmin = user.role === 'BRANCH_ADMIN';
-    const isSubLeader = ['DEPT_LEADER', 'CELL_LEADER', 'INTEREST_GROUP_LEADER'].includes(user.role);
+    const isSubLeader = ['DEPT_LEADER', 'CELL_LEADER', 'INTEREST_GROUP_LEADER', 'FOUNDATION_SCHOOL'].includes(user.role);
 
     if (!isSubLeader && !isBranchAdmin) return;
 

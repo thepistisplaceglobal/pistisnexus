@@ -4,7 +4,14 @@ import { get, set as idbSet, del } from "idb-keyval";
 import { supabase } from "@/lib/supabase";
 import { ActivityService } from "@/services/activityService";
 
-export type Role = "GLOBAL_ADMIN" | "BRANCH_ADMIN" | "DEPT_LEADER" | "CELL_LEADER" | "INTEREST_GROUP_LEADER" | "FOUNDATION_SCHOOL" | "HOME_CELL_COORD";
+export type Role =
+  | "GLOBAL_ADMIN"
+  | "BRANCH_ADMIN"
+  | "DEPT_LEADER"
+  | "CELL_LEADER"
+  | "INTEREST_GROUP_LEADER"
+  | "FOUNDATION_SCHOOL"
+  | "HOME_CELL_COORD";
 
 export interface User {
   id: string;
@@ -63,7 +70,7 @@ export interface PasswordRequest {
   branchName?: string;
   unitName?: string;
   role: string;
-  newPassword?: string; 
+  newPassword?: string;
   status: "PENDING" | "APPROVED" | "REJECTED";
   createdAt: string;
 }
@@ -98,7 +105,7 @@ interface AppState {
   isOnline: boolean;
   setIsOnline: (status: boolean) => void;
   pendingActions: PendingAction[];
-  addPendingAction: (action: Omit<PendingAction, 'id' | 'timestamp'>) => void;
+  addPendingAction: (action: Omit<PendingAction, "id" | "timestamp">) => void;
   clearPendingActions: () => void;
   syncPendingActions: () => Promise<void>;
   login: (user: User) => void;
@@ -120,24 +127,38 @@ interface AppState {
   restoreLeader: (id: string) => Promise<void>;
   globalMessages: GlobalMessage[];
   fetchGlobalMessages: () => Promise<void>;
-  sendGlobalMessage: (message: Omit<GlobalMessage, 'id' | 'created_at'>) => Promise<void>;
+  sendGlobalMessage: (
+    message: Omit<GlobalMessage, "id" | "created_at">,
+  ) => Promise<void>;
   branchMessages: BranchMessage[];
   fetchBranchMessages: (branchName: string) => Promise<void>;
-  sendBranchMessage: (message: Omit<BranchMessage, 'id' | 'created_at'>) => Promise<void>;
+  sendBranchMessage: (
+    message: Omit<BranchMessage, "id" | "created_at">,
+  ) => Promise<void>;
   passwordRequests: PasswordRequest[];
   requestPasswordChange: (req: PasswordRequest) => void;
-  updatePasswordRequestStatus: (id: string, status: "APPROVED" | "REJECTED") => void;
+  updatePasswordRequestStatus: (
+    id: string,
+    status: "APPROVED" | "REJECTED",
+  ) => void;
   profiles: Profile[];
   setProfiles: (profiles: Profile[]) => void;
   fetchProfiles: (currentUser: User | null) => Promise<void>;
   updateProfileStatus: (id: string, updates: Partial<Profile>) => Promise<void>;
   clearTestData: (currentUser: User | null) => Promise<void>;
-  bulkDeleteDatabaseRecords: (tables: string[]) => Promise<{ success: boolean; results: Record<string, { deleted: number; error?: string }> }>;
+  bulkDeleteDatabaseRecords: (
+    tables: string[],
+  ) => Promise<{
+    success: boolean;
+    results: Record<string, { deleted: number; error?: string }>;
+  }>;
   theme: "dark" | "light";
   setTheme: (theme: "dark" | "light") => void;
   supabaseSyncStatus: "synced" | "syncing" | "pulling" | "offline" | "error";
   lastSyncTime: string | null;
-  setSupabaseSyncStatus: (status: "synced" | "syncing" | "pulling" | "offline" | "error") => void;
+  setSupabaseSyncStatus: (
+    status: "synced" | "syncing" | "pulling" | "offline" | "error",
+  ) => void;
   setLastSyncTime: (time: string | null) => void;
   pingSupabaseStatus: () => Promise<void>;
 }
@@ -161,41 +182,50 @@ export const useAppStore = create<AppState>()(
       onlineUsers: new Set<string>(),
       setOnlineUsers: (users: Set<string>) => set({ onlineUsers: users }),
       isOnline: navigator.onLine,
-      setIsOnline: (status) => set((state) => ({ 
-        isOnline: status,
-        supabaseSyncStatus: status ? "synced" : "offline"
-      })),
+      setIsOnline: (status) =>
+        set((state) => ({
+          isOnline: status,
+          supabaseSyncStatus: status ? "synced" : "offline",
+        })),
       pendingActions: [],
-      addPendingAction: (action) => set((state) => ({ 
-        pendingActions: [...state.pendingActions, { 
-          ...action, 
-          id: Date.now().toString() + Math.random().toString(36).substring(2), 
-          timestamp: new Date().toISOString() 
-        }] 
-      })),
+      addPendingAction: (action) =>
+        set((state) => ({
+          pendingActions: [
+            ...state.pendingActions,
+            {
+              ...action,
+              id:
+                Date.now().toString() + Math.random().toString(36).substring(2),
+              timestamp: new Date().toISOString(),
+            },
+          ],
+        })),
       clearPendingActions: () => set({ pendingActions: [] }),
       syncPendingActions: async () => {
         const { pendingActions, isOnline, clearPendingActions } = get();
         if (!isOnline || pendingActions.length === 0) return;
-        
+
         set({ supabaseSyncStatus: "syncing" });
         // Simulating sync processing logic
         console.log(`Syncing ${pendingActions.length} actions...`);
         for (const action of pendingActions) {
-           console.log(`Processing ${action.type}`, action.payload);
-           // In a real app we'd dispatch back to API methods
-           await new Promise(r => setTimeout(r, 600));
+          console.log(`Processing ${action.type}`, action.payload);
+          // In a real app we'd dispatch back to API methods
+          await new Promise((r) => setTimeout(r, 600));
         }
-        
+
         clearPendingActions();
-        set({ 
+        set({
           supabaseSyncStatus: "synced",
-          lastSyncTime: new Date().toLocaleTimeString()
+          lastSyncTime: new Date().toLocaleTimeString(),
         });
       },
       login: (user) => set({ user }),
       logout: () => set({ user: null }),
-      updateUser: (updates) => set((state) => ({ user: state.user ? { ...state.user, ...updates } : null })),
+      updateUser: (updates) =>
+        set((state) => ({
+          user: state.user ? { ...state.user, ...updates } : null,
+        })),
       currentModule: "Dashboard",
       setCurrentModule: (module) => set({ currentModule: module }),
       theme: "dark",
@@ -210,15 +240,18 @@ export const useAppStore = create<AppState>()(
           set({ supabaseSyncStatus: "offline" });
           return;
         }
-        
+
         set({ supabaseSyncStatus: "pulling" });
         try {
-          const { error } = await supabase.from('profiles').select('id').limit(1);
+          const { error } = await supabase
+            .from("profiles")
+            .select("id")
+            .limit(1);
           if (error) throw error;
-          
-          set({ 
+
+          set({
             supabaseSyncStatus: "synced",
-            lastSyncTime: new Date().toLocaleTimeString() 
+            lastSyncTime: new Date().toLocaleTimeString(),
           });
         } catch (e) {
           console.warn("Supabase verification failed:", e);
@@ -234,7 +267,7 @@ export const useAppStore = create<AppState>()(
       leaders: [],
       fetchLeaders: async () => {
         try {
-          const { data, error } = await supabase.from('leaders').select('*');
+          const { data, error } = await supabase.from("leaders").select("*");
           if (error) {
             console.error("Error fetching leaders:", error);
             return;
@@ -249,18 +282,28 @@ export const useAppStore = create<AppState>()(
       addLeader: async (leader) => {
         const { isOnline, addPendingAction } = get();
         if (!isOnline) {
-           addPendingAction({ type: 'ADD_LEADER', payload: leader });
-           set((state) => ({ leaders: [...state.leaders, { ...leader, id: Date.now().toString() }] }));
-           return;
+          addPendingAction({ type: "ADD_LEADER", payload: leader });
+          set((state) => ({
+            leaders: [
+              ...state.leaders,
+              { ...leader, id: Date.now().toString() },
+            ],
+          }));
+          return;
         }
         try {
           const { id, ...insertData } = leader;
-          const { data, error } = await supabase.from('leaders').insert([insertData]).select();
+          const { data, error } = await supabase
+            .from("leaders")
+            .insert([insertData])
+            .select();
           if (error) {
             console.error("Error adding leader:", error.message);
             set((state) => ({ leaders: [...state.leaders, leader] }));
           } else if (data) {
-            set((state) => ({ leaders: [...state.leaders, data[0] as LeaderContact] }));
+            set((state) => ({
+              leaders: [...state.leaders, data[0] as LeaderContact],
+            }));
           }
         } catch (err) {
           console.error(err);
@@ -269,17 +312,27 @@ export const useAppStore = create<AppState>()(
       updateLeader: async (id, updatedFields) => {
         const { isOnline, addPendingAction } = get();
         if (!isOnline) {
-           addPendingAction({ type: 'UPDATE_LEADER', payload: { id, updatedFields } });
-           set((state) => ({
-             leaders: state.leaders.map((l) => l.id === id ? { ...l, ...updatedFields } : l)
-           }));
-           return;
+          addPendingAction({
+            type: "UPDATE_LEADER",
+            payload: { id, updatedFields },
+          });
+          set((state) => ({
+            leaders: state.leaders.map((l) =>
+              l.id === id ? { ...l, ...updatedFields } : l,
+            ),
+          }));
+          return;
         }
         try {
-          const { error } = await supabase.from('leaders').update(updatedFields).eq('id', id);
+          const { error } = await supabase
+            .from("leaders")
+            .update(updatedFields)
+            .eq("id", id);
           if (error) console.error("Error updating leader:", error);
           set((state) => ({
-            leaders: state.leaders.map((l) => l.id === id ? { ...l, ...updatedFields } : l)
+            leaders: state.leaders.map((l) =>
+              l.id === id ? { ...l, ...updatedFields } : l,
+            ),
           }));
         } catch (err) {
           console.error(err);
@@ -287,13 +340,25 @@ export const useAppStore = create<AppState>()(
       },
       deleteLeader: async (id) => {
         const currentUser = get().user;
-        if (!currentUser || (currentUser.role !== "GLOBAL_ADMIN" && currentUser.role !== "BRANCH_ADMIN")) {
-          throw new Error("Unauthorized: Only branch or global administrators can delete leaders.");
+        if (
+          !currentUser ||
+          (currentUser.role !== "GLOBAL_ADMIN" &&
+            currentUser.role !== "BRANCH_ADMIN")
+        ) {
+          throw new Error(
+            "Unauthorized: Only branch or global administrators can delete leaders.",
+          );
         }
 
-        const leader = get().leaders.find(l => l.id === id);
-        if (leader && currentUser.role === "BRANCH_ADMIN" && leader.branch !== currentUser.branchName) {
-          throw new Error("Unauthorized: You can only delete leaders within your assigned branch.");
+        const leader = get().leaders.find((l) => l.id === id);
+        if (
+          leader &&
+          currentUser.role === "BRANCH_ADMIN" &&
+          leader.branch !== currentUser.branchName
+        ) {
+          throw new Error(
+            "Unauthorized: You can only delete leaders within your assigned branch.",
+          );
         }
 
         const { isOnline, addPendingAction } = get();
@@ -301,27 +366,43 @@ export const useAppStore = create<AppState>()(
         const deleted_by = currentUser.name;
 
         if (!isOnline) {
-           addPendingAction({ type: 'DELETE_LEADER', payload: { id, deleted_at, deleted_by } });
-           set((state) => ({
-             leaders: state.leaders.map((l) => l.id === id ? { ...l, active: false, deleted_at, deleted_by } : l)
-           }));
-           return;
+          addPendingAction({
+            type: "DELETE_LEADER",
+            payload: { id, deleted_at, deleted_by },
+          });
+          set((state) => ({
+            leaders: state.leaders.map((l) =>
+              l.id === id ? { ...l, active: false, deleted_at, deleted_by } : l,
+            ),
+          }));
+          return;
         }
         try {
           // Attempt soft delete: mark active=false, deleted_at, deleted_by
-          const { error } = await supabase.from('leaders').update({
-            active: false,
-            deleted_at,
-            deleted_by
-          } as any).eq('id', id);
+          const { error } = await supabase
+            .from("leaders")
+            .update({
+              active: false,
+              deleted_at,
+              deleted_by,
+            } as any)
+            .eq("id", id);
 
           if (error) {
-            console.warn("Soft delete columns might not exist on Remote DB yet, falling back to active: false.", error.message);
-            await supabase.from('leaders').update({ active: false }).eq('id', id);
+            console.warn(
+              "Soft delete columns might not exist on Remote DB yet, falling back to active: false.",
+              error.message,
+            );
+            await supabase
+              .from("leaders")
+              .update({ active: false })
+              .eq("id", id);
           }
 
           set((state) => ({
-            leaders: state.leaders.map((l) => l.id === id ? { ...l, active: false, deleted_at, deleted_by } : l)
+            leaders: state.leaders.map((l) =>
+              l.id === id ? { ...l, active: false, deleted_at, deleted_by } : l,
+            ),
           }));
 
           // Log in activity logs
@@ -331,7 +412,7 @@ export const useAppStore = create<AppState>()(
             user_role: currentUser.role,
             branch_name: currentUser.branchName,
             action_type: "LEADER_DELETED",
-            details: `Deleted leader "${leader?.name}" from group "${leader?.group_name}" (moved to Trash Bin for 30 days).`
+            details: `Deleted leader "${leader?.name}" from group "${leader?.group_name}" (moved to Trash Bin for 30 days).`,
           });
         } catch (err) {
           console.error(err);
@@ -339,35 +420,71 @@ export const useAppStore = create<AppState>()(
       },
       restoreLeader: async (id) => {
         const currentUser = get().user;
-        if (!currentUser || (currentUser.role !== "GLOBAL_ADMIN" && currentUser.role !== "BRANCH_ADMIN")) {
-          throw new Error("Unauthorized: Only branch or global administrators can restore leaders.");
+        if (
+          !currentUser ||
+          (currentUser.role !== "GLOBAL_ADMIN" &&
+            currentUser.role !== "BRANCH_ADMIN")
+        ) {
+          throw new Error(
+            "Unauthorized: Only branch or global administrators can restore leaders.",
+          );
         }
 
-        const leader = get().leaders.find(l => l.id === id);
-        if (leader && currentUser.role === "BRANCH_ADMIN" && leader.branch !== currentUser.branchName) {
-          throw new Error("Unauthorized: You can only restore leaders within your assigned branch.");
+        const leader = get().leaders.find((l) => l.id === id);
+        if (
+          leader &&
+          currentUser.role === "BRANCH_ADMIN" &&
+          leader.branch !== currentUser.branchName
+        ) {
+          throw new Error(
+            "Unauthorized: You can only restore leaders within your assigned branch.",
+          );
         }
 
         const { isOnline } = get();
         if (!isOnline) {
-           set((state) => ({
-             leaders: state.leaders.map((l) => l.id === id ? { ...l, active: true, deleted_at: undefined, deleted_by: undefined } : l)
-           }));
-           return;
+          set((state) => ({
+            leaders: state.leaders.map((l) =>
+              l.id === id
+                ? {
+                    ...l,
+                    active: true,
+                    deleted_at: undefined,
+                    deleted_by: undefined,
+                  }
+                : l,
+            ),
+          }));
+          return;
         }
         try {
-          const { error } = await supabase.from('leaders').update({
-            active: true,
-            deleted_at: null,
-            deleted_by: null
-          } as any).eq('id', id);
+          const { error } = await supabase
+            .from("leaders")
+            .update({
+              active: true,
+              deleted_at: null,
+              deleted_by: null,
+            } as any)
+            .eq("id", id);
 
           if (error) {
-            await supabase.from('leaders').update({ active: true }).eq('id', id);
+            await supabase
+              .from("leaders")
+              .update({ active: true })
+              .eq("id", id);
           }
 
           set((state) => ({
-            leaders: state.leaders.map((l) => l.id === id ? { ...l, active: true, deleted_at: undefined, deleted_by: undefined } : l)
+            leaders: state.leaders.map((l) =>
+              l.id === id
+                ? {
+                    ...l,
+                    active: true,
+                    deleted_at: undefined,
+                    deleted_by: undefined,
+                  }
+                : l,
+            ),
           }));
 
           // Log in activity logs
@@ -377,7 +494,7 @@ export const useAppStore = create<AppState>()(
             user_role: currentUser.role,
             branch_name: currentUser.branchName,
             action_type: "LEADER_RESTORED",
-            details: `Restored leader "${leader?.name}" back to group "${leader?.group_name}".`
+            details: `Restored leader "${leader?.name}" back to group "${leader?.group_name}".`,
           });
         } catch (err) {
           console.error(err);
@@ -387,9 +504,9 @@ export const useAppStore = create<AppState>()(
       fetchGlobalMessages: async () => {
         try {
           const { data, error } = await supabase
-            .from('global_messages')
-            .select('*')
-            .order('created_at', { ascending: false });
+            .from("global_messages")
+            .select("*")
+            .order("created_at", { ascending: false });
           if (error) {
             console.error("Error fetching global messages:", error);
             return;
@@ -403,19 +520,27 @@ export const useAppStore = create<AppState>()(
       },
       sendGlobalMessage: async (message) => {
         try {
-          const { data, error } = await supabase.from('global_messages').insert([message]).select();
+          const { data, error } = await supabase
+            .from("global_messages")
+            .insert([message])
+            .select();
           if (error) {
             console.error("Error sending message:", error);
           } else if (data && data.length > 0) {
-            set((state) => ({ globalMessages: [data[0] as GlobalMessage, ...state.globalMessages] }));
-            
+            set((state) => ({
+              globalMessages: [
+                data[0] as GlobalMessage,
+                ...state.globalMessages,
+              ],
+            }));
+
             // Log in activity logs
             await ActivityService.logActivity({
               user_name: message.author_name,
               user_role: message.author_role || "GLOBAL_ADMIN",
               branch_name: null,
               action_type: "GLOBAL_ANNOUNCEMENT",
-              details: `Broadcasted global bulletin: "${message.content.slice(0, 60)}${message.content.length > 60 ? '...' : ''}"`
+              details: `Broadcasted global bulletin: "${message.content.slice(0, 60)}${message.content.length > 60 ? "..." : ""}"`,
             });
           }
         } catch (err) {
@@ -426,10 +551,10 @@ export const useAppStore = create<AppState>()(
       fetchBranchMessages: async (branchName) => {
         try {
           const { data, error } = await supabase
-            .from('branch_messages')
-            .select('*')
-            .eq('branch_name', branchName)
-            .order('created_at', { ascending: false });
+            .from("branch_messages")
+            .select("*")
+            .eq("branch_name", branchName)
+            .order("created_at", { ascending: false });
           if (error) {
             console.error("Error fetching branch messages:", error);
             return;
@@ -443,11 +568,19 @@ export const useAppStore = create<AppState>()(
       },
       sendBranchMessage: async (message) => {
         try {
-          const { data, error } = await supabase.from('branch_messages').insert([message]).select();
+          const { data, error } = await supabase
+            .from("branch_messages")
+            .insert([message])
+            .select();
           if (error) {
             console.error("Error sending branch message:", error);
           } else if (data && data.length > 0) {
-            set((state) => ({ branchMessages: [data[0] as BranchMessage, ...state.branchMessages] }));
+            set((state) => ({
+              branchMessages: [
+                data[0] as BranchMessage,
+                ...state.branchMessages,
+              ],
+            }));
 
             // Log in activity logs
             await ActivityService.logActivity({
@@ -455,7 +588,7 @@ export const useAppStore = create<AppState>()(
               user_role: message.author_role || "BRANCH_ADMIN",
               branch_name: message.branch_name,
               action_type: "BRANCH_UPDATE",
-              details: `Posted local update for ${message.branch_name}: "${message.content.slice(0, 60)}${message.content.length > 60 ? '...' : ''}"`
+              details: `Posted local update for ${message.branch_name}: "${message.content.slice(0, 60)}${message.content.length > 60 ? "..." : ""}"`,
             });
           }
         } catch (err) {
@@ -463,19 +596,35 @@ export const useAppStore = create<AppState>()(
         }
       },
       passwordRequests: [],
-      requestPasswordChange: (req) => set((state) => ({ passwordRequests: [req, ...state.passwordRequests] })),
-      updatePasswordRequestStatus: (id, status) => set((state) => ({
-        passwordRequests: state.passwordRequests.map(r => r.id === id ? { ...r, status } : r)
-      })),
+      requestPasswordChange: (req) =>
+        set((state) => ({
+          passwordRequests: [req, ...state.passwordRequests],
+        })),
+      updatePasswordRequestStatus: (id, status) =>
+        set((state) => ({
+          passwordRequests: state.passwordRequests.map((r) =>
+            r.id === id ? { ...r, status } : r,
+          ),
+        })),
       profiles: [],
       setProfiles: (profiles) => set({ profiles }),
       fetchProfiles: async (currentUser) => {
         let profilesList: Profile[] = [];
         try {
           let query = supabase.from("profiles").select("*");
-          if (currentUser?.role === "GLOBAL_ADMIN") {
+          const hasGlobalRole =
+            currentUser?.role === "GLOBAL_ADMIN" ||
+            currentUser?.roles?.includes("GLOBAL_ADMIN");
+          const hasBranchRole =
+            currentUser?.role === "BRANCH_ADMIN" ||
+            currentUser?.roles?.includes("BRANCH_ADMIN");
+          const hasCoordRole =
+            currentUser?.role === "HOME_CELL_COORD" ||
+            currentUser?.roles?.includes("HOME_CELL_COORD");
+
+          if (hasGlobalRole) {
             // Global Admin can see all profiles across all branches
-          } else if (currentUser?.role === "BRANCH_ADMIN") {
+          } else if (hasBranchRole || hasCoordRole) {
             query = query.eq("branch_name", currentUser.branchName || "");
           }
           const { data, error } = await query;
@@ -489,8 +638,10 @@ export const useAppStore = create<AppState>()(
         // Merge with local storage
         try {
           const localProfilesStr = localStorage.getItem("local_profiles");
-          const localProfiles: Profile[] = localProfilesStr ? JSON.parse(localProfilesStr) : [];
-          
+          const localProfiles: Profile[] = localProfilesStr
+            ? JSON.parse(localProfilesStr)
+            : [];
+
           if (profilesList.length === 0 && localProfiles.length === 0) {
             const defaultCollection: Profile[] = [
               {
@@ -502,7 +653,7 @@ export const useAppStore = create<AppState>()(
                 branch_name: currentUser?.branchName || "Uyo (HQ)",
                 unit_name: "Media Department",
                 status: "PENDING",
-                created_at: new Date(Date.now() - 3600000 * 2).toISOString()
+                created_at: new Date(Date.now() - 3600000 * 2).toISOString(),
               },
               {
                 id: "seed-leader-amina",
@@ -513,7 +664,7 @@ export const useAppStore = create<AppState>()(
                 branch_name: currentUser?.branchName || "Calabar",
                 unit_name: "Calabar Central Cell 3",
                 status: "PENDING",
-                created_at: new Date(Date.now() - 3600000 * 5).toISOString()
+                created_at: new Date(Date.now() - 3600000 * 5).toISOString(),
               },
               {
                 id: "seed-leader-emeka",
@@ -524,7 +675,7 @@ export const useAppStore = create<AppState>()(
                 branch_name: currentUser?.branchName || "Uyo (HQ)",
                 unit_name: "Music & Creative Arts",
                 status: "APPROVED",
-                created_at: new Date(Date.now() - 3600000 * 24).toISOString()
+                created_at: new Date(Date.now() - 3600000 * 24).toISOString(),
               },
               {
                 id: "seed-leader-funke",
@@ -535,29 +686,72 @@ export const useAppStore = create<AppState>()(
                 branch_name: currentUser?.branchName || "Lagos HQ",
                 unit_name: "Ushering Association",
                 status: "APPROVED",
-                created_at: new Date(Date.now() - 3600000 * 36).toISOString()
-              }
+                created_at: new Date(Date.now() - 3600000 * 36).toISOString(),
+              },
             ];
-            localStorage.setItem("local_profiles", JSON.stringify(defaultCollection));
+            localStorage.setItem(
+              "local_profiles",
+              JSON.stringify(defaultCollection),
+            );
             profilesList = defaultCollection;
           } else {
             const mergedMap = new Map<string, Profile>();
             localProfiles.forEach((p: Profile) => mergedMap.set(p.id, p));
             profilesList.forEach((p: Profile) => mergedMap.set(p.id, p));
             profilesList = Array.from(mergedMap.values());
-            localStorage.setItem("local_profiles", JSON.stringify(profilesList));
+            localStorage.setItem(
+              "local_profiles",
+              JSON.stringify(profilesList),
+            );
           }
         } catch (e) {
           console.error(e);
         }
 
-        if (currentUser?.role === "GLOBAL_ADMIN") {
-          profilesList = profilesList.filter(p => p.role === "GLOBAL_ADMIN" || p.role === "BRANCH_ADMIN");
-        } else if (currentUser?.role === "BRANCH_ADMIN") {
-          profilesList = profilesList.filter(p => p.branch_name === currentUser.branchName && p.role !== "GLOBAL_ADMIN" && p.role !== "BRANCH_ADMIN");
-        } else {
-          profilesList = [];
-        }
+        const hasGlobalRole =
+          currentUser?.role === "GLOBAL_ADMIN" ||
+          currentUser?.roles?.includes("GLOBAL_ADMIN");
+        const hasBranchRole =
+          currentUser?.role === "BRANCH_ADMIN" ||
+          currentUser?.roles?.includes("BRANCH_ADMIN");
+        const hasCoordRole =
+          currentUser?.role === "HOME_CELL_COORD" ||
+          currentUser?.roles?.includes("HOME_CELL_COORD");
+
+        const globalRolesList = ["GLOBAL_ADMIN", "BRANCH_ADMIN"];
+        const branchRolesList = [
+          "DEPT_LEADER",
+          "CELL_LEADER",
+          "INTEREST_GROUP_LEADER",
+          "FOUNDATION_SCHOOL",
+          "HOME_CELL_COORD",
+        ];
+
+        profilesList = profilesList.filter((p) => {
+          const pRoles = p.role ? p.role.split(",") : [];
+          let canSee = false;
+
+          if (hasGlobalRole) {
+            const hasAnyGlobal = pRoles.some((r) =>
+              globalRolesList.includes(r.trim()),
+            );
+            if (hasAnyGlobal) canSee = true;
+          }
+
+          if (hasBranchRole && p.branch_name === currentUser.branchName) {
+            const hasAnyBranch = pRoles.some((r) =>
+              branchRolesList.includes(r.trim()),
+            );
+            if (hasAnyBranch) canSee = true;
+          }
+
+          if (hasCoordRole && p.branch_name === currentUser.branchName) {
+            const hasAnyCell = pRoles.some((r) => r.trim() === "CELL_LEADER");
+            if (hasAnyCell) canSee = true;
+          }
+
+          return canSee;
+        });
 
         set({ profiles: profilesList });
       },
@@ -573,7 +767,9 @@ export const useAppStore = create<AppState>()(
           const localProfilesStr = localStorage.getItem("local_profiles");
           if (localProfilesStr) {
             const localProfiles: Profile[] = JSON.parse(localProfilesStr);
-            const updated = localProfiles.map(p => p.id === id ? { ...p, ...statusUpdates } : p);
+            const updated = localProfiles.map((p) =>
+              p.id === id ? { ...p, ...statusUpdates } : p,
+            );
             localStorage.setItem("local_profiles", JSON.stringify(updated));
           }
         } catch (e) {
@@ -582,7 +778,9 @@ export const useAppStore = create<AppState>()(
 
         // Update memory
         set((state) => ({
-          profiles: state.profiles.map(p => p.id === id ? { ...p, ...statusUpdates } : p)
+          profiles: state.profiles.map((p) =>
+            p.id === id ? { ...p, ...statusUpdates } : p,
+          ),
         }));
       },
       clearTestData: async (currentUser) => {
@@ -593,11 +791,25 @@ export const useAppStore = create<AppState>()(
             let profilesList: Profile[] = [];
             try {
               let query = supabase.from("profiles").select("*");
-              if (currentUser?.role === "GLOBAL_ADMIN") {
+              const hasGlobalRole =
+                currentUser?.role === "GLOBAL_ADMIN" ||
+                currentUser?.roles?.includes("GLOBAL_ADMIN");
+              const hasBranchRole =
+                currentUser?.role === "BRANCH_ADMIN" ||
+                currentUser?.roles?.includes("BRANCH_ADMIN");
+              const hasCoordRole =
+                currentUser?.role === "HOME_CELL_COORD" ||
+                currentUser?.roles?.includes("HOME_CELL_COORD");
+
+              if (hasGlobalRole) {
                 query = query.in("role", ["GLOBAL_ADMIN", "BRANCH_ADMIN"]);
-              } else if (currentUser?.role === "BRANCH_ADMIN") {
+              } else if (hasBranchRole || hasCoordRole) {
                 query = query.eq("branch_name", currentUser.branchName || "");
-                query = query.not("role", "in", '("GLOBAL_ADMIN", "BRANCH_ADMIN")');
+                query = query.not(
+                  "role",
+                  "in",
+                  '("GLOBAL_ADMIN", "BRANCH_ADMIN")',
+                );
               }
               const { data, error } = await query;
               if (!error && data) {
@@ -607,13 +819,50 @@ export const useAppStore = create<AppState>()(
               console.warn("Global profiles fetch bypassed:", err);
             }
 
-            if (currentUser?.role === "GLOBAL_ADMIN") {
-              profilesList = profilesList.filter(p => p.role === "GLOBAL_ADMIN" || p.role === "BRANCH_ADMIN");
-            } else if (currentUser?.role === "BRANCH_ADMIN") {
-              profilesList = profilesList.filter(p => p.branch_name === currentUser.branchName && p.role !== "GLOBAL_ADMIN" && p.role !== "BRANCH_ADMIN");
-            } else {
-              profilesList = [];
-            }
+            const hasGlobalRole =
+              currentUser?.role === "GLOBAL_ADMIN" ||
+              currentUser?.roles?.includes("GLOBAL_ADMIN");
+            const hasBranchRole =
+              currentUser?.role === "BRANCH_ADMIN" ||
+              currentUser?.roles?.includes("BRANCH_ADMIN");
+            const hasCoordRole =
+              currentUser?.role === "HOME_CELL_COORD" ||
+              currentUser?.roles?.includes("HOME_CELL_COORD");
+
+            const globalRolesList = ["GLOBAL_ADMIN", "BRANCH_ADMIN"];
+            const branchRolesList = [
+              "DEPT_LEADER",
+              "CELL_LEADER",
+              "INTEREST_GROUP_LEADER",
+              "FOUNDATION_SCHOOL",
+              "HOME_CELL_COORD",
+            ];
+
+            profilesList = profilesList.filter((p) => {
+              const pRoles = p.role ? p.role.split(",") : [];
+              let canSee = false;
+
+              if (hasGlobalRole) {
+                const hasAnyGlobal = pRoles.some((r) =>
+                  globalRolesList.includes(r.trim()),
+                );
+                if (hasAnyGlobal) canSee = true;
+              }
+
+              if (hasBranchRole && p.branch_name === currentUser.branchName) {
+                const hasAnyBranch = pRoles.some((r) =>
+                  branchRolesList.includes(r.trim()),
+                );
+                if (hasAnyBranch) canSee = true;
+              }
+
+              if (hasCoordRole && p.branch_name === currentUser.branchName) {
+                const hasAnyCell = pRoles.some((r) => r.trim() === "CELL_LEADER");
+                if (hasAnyCell) canSee = true;
+              }
+
+              return canSee;
+            });
             set({ profiles: profilesList });
           }
         } catch (e) {
@@ -623,17 +872,26 @@ export const useAppStore = create<AppState>()(
       bulkDeleteDatabaseRecords: async (tables) => {
         const results: Record<string, { deleted: number; error?: string }> = {};
         const currentUser = get().user;
-        if (!currentUser || (currentUser.role !== "GLOBAL_ADMIN" && currentUser.role !== "BRANCH_ADMIN")) {
-          throw new Error("Unauthorized: Only platform administrators can perform bulk database operations.");
+        const hasGlobalRole =
+          currentUser?.role === "GLOBAL_ADMIN" ||
+          currentUser?.roles?.includes("GLOBAL_ADMIN");
+        const hasBranchRole =
+          currentUser?.role === "BRANCH_ADMIN" ||
+          currentUser?.roles?.includes("BRANCH_ADMIN");
+
+        if (!currentUser || (!hasGlobalRole && !hasBranchRole)) {
+          throw new Error(
+            "Unauthorized: Only platform administrators can perform bulk database operations.",
+          );
         }
 
-        const isGlobalAdmin = currentUser.role === "GLOBAL_ADMIN";
+        const isGlobalAdmin = hasGlobalRole;
         const branchNameFilter = currentUser.branchName || "";
 
         for (const table of tables) {
           try {
             let query = supabase.from(table).delete();
-            
+
             // Adjust filters based on role constraints
             if (table === "unit_reports") {
               if (!isGlobalAdmin) {
@@ -676,9 +934,14 @@ export const useAppStore = create<AppState>()(
               // Be very careful - NEVER delete the active user, and NEVER delete accepted/approved active users!
               // Only delete PENDING or REJECTED profiles (representing unapproved demo or test accounts/registrants)
               if (!isGlobalAdmin) {
-                query = query.eq("branch_name", branchNameFilter).neq("id", currentUser.id).in("status", ["PENDING", "REJECTED"]);
+                query = query
+                  .eq("branch_name", branchNameFilter)
+                  .neq("id", currentUser.id)
+                  .in("status", ["PENDING", "REJECTED"]);
               } else {
-                query = query.neq("id", currentUser.id).in("status", ["PENDING", "REJECTED"]);
+                query = query
+                  .neq("id", currentUser.id)
+                  .in("status", ["PENDING", "REJECTED"]);
               }
             }
 
@@ -695,7 +958,11 @@ export const useAppStore = create<AppState>()(
                 if (isGlobalAdmin) {
                   set({ leaders: [] });
                 } else {
-                  set((state) => ({ leaders: state.leaders.filter(l => l.branch !== branchNameFilter) }));
+                  set((state) => ({
+                    leaders: state.leaders.filter(
+                      (l) => l.branch !== branchNameFilter,
+                    ),
+                  }));
                 }
               } else if (table === "global_messages" && isGlobalAdmin) {
                 set({ globalMessages: [] });
@@ -703,7 +970,11 @@ export const useAppStore = create<AppState>()(
                 if (isGlobalAdmin) {
                   set({ branchMessages: [] });
                 } else {
-                  set((state) => ({ branchMessages: state.branchMessages.filter(m => m.branch_name !== branchNameFilter) }));
+                  set((state) => ({
+                    branchMessages: state.branchMessages.filter(
+                      (m) => m.branch_name !== branchNameFilter,
+                    ),
+                  }));
                 }
               } else if (table === "profiles") {
                 // Refetch profiles
@@ -722,7 +993,7 @@ export const useAppStore = create<AppState>()(
             user_role: currentUser.role,
             branch_name: currentUser.branchName || null,
             action_type: "DATABASE_MAINTENANCE",
-            details: `Administered bulk database deletion of records for categories: ${tables.join(", ")}`
+            details: `Administered bulk database deletion of records for categories: ${tables.join(", ")}`,
           });
         } catch (e) {
           console.warn("Failed to write utility action log:", e);
@@ -732,13 +1003,12 @@ export const useAppStore = create<AppState>()(
       },
     }),
     {
-      name: 'pistis-nexus-storage', // unique name
+      name: "pistis-nexus-storage", // unique name
       storage: createJSONStorage(() => idbStorage),
       partialize: (state) => {
         const { onlineUsers, ...rest } = state;
         return rest;
       },
-    }
-  )
+    },
+  ),
 );
-

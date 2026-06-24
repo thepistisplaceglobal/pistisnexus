@@ -15,7 +15,7 @@ export function Sidebar() {
   const allItems = [
     { name: "Global Intelligence", id: "Hub", icon: LayoutDashboard, path: "/", roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN", "DEPT_LEADER", "CELL_LEADER", "INTEREST_GROUP_LEADER", "FOUNDATION_SCHOOL", "HOME_CELL_COORD"] },
     { name: "City Expressions", id: "Branches", icon: Network, path: "/branches", roles: ["GLOBAL_ADMIN"] },
-    { name: "Access Approvals", id: "Approvals", icon: Key, path: "/approvals", roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN"] },
+    { name: "Access Approvals", id: "Approvals", icon: Key, path: "/approvals", roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN", "HOME_CELL_COORD"] },
     { name: "Finance", id: "Finance", icon: Wallet, path: "/finance", roles: ["DEPT_LEADER", "CELL_LEADER", "INTEREST_GROUP_LEADER"] },
     { name: "Departments", id: "Departments", icon: Users, path: "/departments", roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN", "DEPT_LEADER"] },
     { name: "Home Cells", id: "HomeCells", icon: Home, path: "/homecells", roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN", "HOME_CELL_COORD"] },
@@ -39,24 +39,37 @@ export function Sidebar() {
   const { profiles } = useAppStore();
   const passwordRequests = useAppStore(state => state.passwordRequests) || [];
 
-  const getRoutingKey = (roleStr: string) => {
-    return (roleStr.includes("GLOBAL_ADMIN") || roleStr.includes("BRANCH_ADMIN")) ? "GLOBAL" : "BRANCH";
-  };
-
   const isProfileVisibleToApprover = (profileRoleStr?: string, profileBranch?: string) => {
     if (!user) return false;
-    const routingKey = getRoutingKey(profileRoleStr || "");
+    
+    const pRoles = profileRoleStr ? profileRoleStr.split(',') : [];
+    const globalRolesList = ["GLOBAL_ADMIN", "BRANCH_ADMIN"];
+    const branchRolesList = ["DEPT_LEADER", "CELL_LEADER", "INTEREST_GROUP_LEADER", "FOUNDATION_SCHOOL", "HOME_CELL_COORD"];
+
+    const hasAnyGlobal = pRoles.some(r => globalRolesList.includes(r.trim()));
+    const hasAnyBranch = pRoles.some(r => branchRolesList.includes(r.trim()));
+
     const userRoles = user.roles || [user.role];
 
-    if (userRoles.includes("GLOBAL_ADMIN")) {
-      return routingKey === "GLOBAL";
+    let canSee = false;
+
+    if (userRoles.includes("GLOBAL_ADMIN") && hasAnyGlobal) {
+      canSee = true;
     }
 
-    if (userRoles.includes("BRANCH_ADMIN") && profileBranch === user.branchName) {
-      return routingKey === "BRANCH";
+    if (userRoles.includes("BRANCH_ADMIN") && profileBranch === user.branchName && hasAnyBranch) {
+      canSee = true;
     }
 
-    return false;
+    if (
+      userRoles.includes("HOME_CELL_COORD") &&
+      profileBranch === user.branchName &&
+      pRoles.some((r) => r.trim() === "CELL_LEADER")
+    ) {
+      canSee = true;
+    }
+
+    return canSee;
   };
 
   const pendingPasswordCount = passwordRequests.filter(req => 

@@ -1,7 +1,25 @@
 import React, { useState, useEffect } from "react";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { supabase } from "@/lib/supabase";
-import { Check, X, Key, ShieldAlert, Users, Search, UserMinus, Building, MapPin, Globe, Trash2, RotateCcw, Calendar, AlertTriangle, Activity, Shield, Info } from "lucide-react";
+import {
+  Check,
+  X,
+  Key,
+  ShieldAlert,
+  Users,
+  Search,
+  UserMinus,
+  Building,
+  MapPin,
+  Globe,
+  Trash2,
+  RotateCcw,
+  Calendar,
+  AlertTriangle,
+  Activity,
+  Shield,
+  Info,
+} from "lucide-react";
 import { useAppStore, Profile } from "@/store/useAppStore";
 import { ActivityService } from "@/services/activityService";
 import { EmailService } from "@/services/emailService";
@@ -18,11 +36,17 @@ export function Approvals() {
   const restoreLeader = useAppStore((state) => state.restoreLeader);
 
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"PENDING" | "APPROVED" | "PASSWORDS" | "TRASH">("PENDING");
-  const passwordRequests = useAppStore(state => state.passwordRequests);
-  const updatePasswordRequestStatus = useAppStore(state => state.updatePasswordRequestStatus);
+  const [tab, setTab] = useState<
+    "PENDING" | "APPROVED" | "PASSWORDS" | "TRASH"
+  >("PENDING");
+  const passwordRequests = useAppStore((state) => state.passwordRequests);
+  const updatePasswordRequestStatus = useAppStore(
+    (state) => state.updatePasswordRequestStatus,
+  );
   const [searchTerm, setSearchTerm] = useState("");
-  const [roleOverrides, setRoleOverrides] = useState<Record<string, string>>({});
+  const [roleOverrides, setRoleOverrides] = useState<Record<string, string>>(
+    {},
+  );
   const [purging, setPurging] = useState(false);
   const [purgeSuccess, setPurgeSuccess] = useState(false);
 
@@ -56,7 +80,11 @@ export function Approvals() {
   };
 
   const handlePurge = async () => {
-    if (!window.confirm("Are you sure you want to remove all local demo/seed leader profiles and start fresh? This will preserve any remote database records.")) {
+    if (
+      !window.confirm(
+        "Are you sure you want to remove all local demo/seed leader profiles and start fresh? This will preserve any remote database records.",
+      )
+    ) {
       return;
     }
     setPurging(true);
@@ -77,7 +105,7 @@ export function Approvals() {
   }, [user, fetchProfiles, fetchLeaders]);
 
   const handleRoleChange = (id: string, newRole: string) => {
-    setRoleOverrides(prev => ({ ...prev, [id]: newRole }));
+    setRoleOverrides((prev) => ({ ...prev, [id]: newRole }));
   };
 
   const handleUpdateStatus = async (id: string, newStatus: string) => {
@@ -87,12 +115,12 @@ export function Approvals() {
       updateData.role = overrideRole;
     }
 
-    const targetProfile = profiles.find(p => p.id === id);
+    const targetProfile = profiles.find((p) => p.id === id);
 
     await updateProfileStatus(id, updateData);
-    
+
     if (overrideRole) {
-      setRoleOverrides(prev => {
+      setRoleOverrides((prev) => {
         const newOverrides = { ...prev };
         delete newOverrides[id];
         return newOverrides;
@@ -105,8 +133,9 @@ export function Approvals() {
         user_name: user.name,
         user_role: user.role,
         branch_name: user.branchName,
-        action_type: newStatus === "APPROVED" ? "PROFILE_APPROVED" : "SYSTEM_EVENT",
-        details: `${newStatus === "APPROVED" ? "Approved" : "Rejected"} registration application of "${targetProfile.full_name}" for ${overrideRole || targetProfile.role} in branch "${targetProfile.branch_name || 'N/A'}".`
+        action_type:
+          newStatus === "APPROVED" ? "PROFILE_APPROVED" : "SYSTEM_EVENT",
+        details: `${newStatus === "APPROVED" ? "Approved" : "Rejected"} registration application of "${targetProfile.full_name}" for ${overrideRole || targetProfile.role} in branch "${targetProfile.branch_name || "N/A"}".`,
       });
 
       // Trigger automatic branded welcome approval email
@@ -119,10 +148,13 @@ export function Approvals() {
             targetProfile.full_name,
             targetRole,
             branch,
-            targetProfile.login_key
+            targetProfile.login_key,
           );
         } catch (mailError) {
-          console.error("Failed to compile or dispatch welcome notification:", mailError);
+          console.error(
+            "Failed to compile or dispatch welcome notification:",
+            mailError,
+          );
         }
       }
     }
@@ -130,7 +162,11 @@ export function Approvals() {
 
   const handleRevokeProfile = async (p: Profile) => {
     if (!user) return;
-    if (!window.confirm(`Are you sure you want to revoke system privileges for "${p.full_name}"? They will be moved to the Trash Bin and can be restored within 30 days.`)) {
+    if (
+      !window.confirm(
+        `Are you sure you want to revoke system privileges for "${p.full_name}"? They will be moved to the Trash Bin and can be restored within 30 days.`,
+      )
+    ) {
       return;
     }
 
@@ -140,7 +176,7 @@ export function Approvals() {
     await updateProfileStatus(p.id, {
       status: "DELETED",
       deleted_at,
-      deleted_by
+      deleted_by,
     } as any);
 
     await ActivityService.logActivity({
@@ -149,7 +185,7 @@ export function Approvals() {
       user_role: user.role,
       branch_name: user.branchName,
       action_type: "PROFILE_DELETED",
-      details: `Revoked access and soft-deleted profile "${p.full_name}" of role ${p.role} (moved to Trash Bin).`
+      details: `Revoked access and soft-deleted profile "${p.full_name}" of role ${p.role} (moved to Trash Bin).`,
     });
   };
 
@@ -159,7 +195,7 @@ export function Approvals() {
       await updateProfileStatus(p.id, {
         status: "APPROVED",
         deleted_at: undefined,
-        deleted_by: undefined
+        deleted_by: undefined,
       } as any);
 
       await ActivityService.logActivity({
@@ -168,10 +204,12 @@ export function Approvals() {
         user_role: user.role,
         branch_name: user.branchName,
         action_type: "PROFILE_RESTORED",
-        details: `Restored deleted profile of "${p.full_name}" back to APPROVED status.`
+        details: `Restored deleted profile of "${p.full_name}" back to APPROVED status.`,
       });
 
-      alert(`Successfully restored ${p.full_name} and re-authorized their credentials!`);
+      alert(
+        `Successfully restored ${p.full_name} and re-authorized their credentials!`,
+      );
     } catch (e: any) {
       alert(e.message || "An error occurred during restoration.");
     }
@@ -181,46 +219,79 @@ export function Approvals() {
     if (!user) return;
     try {
       await restoreLeader(id);
-      alert(`Successfully restored group leader "${name}" back to the Directory!`);
+      alert(
+        `Successfully restored group leader "${name}" back to the Directory!`,
+      );
     } catch (e: any) {
       alert(e.message || "An error occurred during restoration.");
     }
   };
 
-  const getRoutingKey = (roleStr: string) => {
-    return (roleStr.includes("GLOBAL_ADMIN") || roleStr.includes("BRANCH_ADMIN")) ? "GLOBAL" : "BRANCH";
-  };
-
-  const isProfileVisibleToApprover = (profileRoleStr?: string, profileBranch?: string) => {
+  const isProfileVisibleToApprover = (
+    profileRoleStr?: string,
+    profileBranch?: string,
+  ) => {
     if (!user) return false;
-    const routingKey = getRoutingKey(profileRoleStr || "");
+
+    const pRoles = profileRoleStr ? profileRoleStr.split(",") : [];
+    const globalRolesList = ["GLOBAL_ADMIN", "BRANCH_ADMIN"];
+    const branchRolesList = [
+      "DEPT_LEADER",
+      "CELL_LEADER",
+      "INTEREST_GROUP_LEADER",
+      "FOUNDATION_SCHOOL",
+      "HOME_CELL_COORD",
+    ];
+
+    const hasAnyGlobal = pRoles.some((r) => globalRolesList.includes(r.trim()));
+    const hasAnyBranch = pRoles.some((r) => branchRolesList.includes(r.trim()));
+
     const userRoles = user.roles || [user.role];
 
-    if (userRoles.includes("GLOBAL_ADMIN")) {
-      return routingKey === "GLOBAL";
+    let canSee = false;
+
+    if (userRoles.includes("GLOBAL_ADMIN") && hasAnyGlobal) {
+      canSee = true;
     }
 
-    if (userRoles.includes("BRANCH_ADMIN") && profileBranch === user.branchName) {
-      return routingKey === "BRANCH";
+    if (
+      userRoles.includes("BRANCH_ADMIN") &&
+      profileBranch === user.branchName &&
+      hasAnyBranch
+    ) {
+      canSee = true;
     }
 
-    return false;
+    if (
+      userRoles.includes("HOME_CELL_COORD") &&
+      profileBranch === user.branchName &&
+      pRoles.some((r) => r.trim() === "CELL_LEADER")
+    ) {
+      canSee = true;
+    }
+
+    return canSee;
   };
 
-  const visibleSystemProfiles = profiles.filter(p => isProfileVisibleToApprover(p.role, p.branch_name));
+  const visibleSystemProfiles = profiles.filter((p) =>
+    isProfileVisibleToApprover(p.role, p.branch_name),
+  );
 
-  const pendingCount = visibleSystemProfiles.filter(p => p.status === "PENDING").length;
+  const pendingCount = visibleSystemProfiles.filter(
+    (p) => p.status === "PENDING",
+  ).length;
 
-  const isGlobal = user?.role === "GLOBAL_ADMIN";
+  const isGlobal =
+    user?.role === "GLOBAL_ADMIN" || user?.roles?.includes("GLOBAL_ADMIN");
   const userBranch = user?.branchName || "";
 
-  const trashProfiles = visibleSystemProfiles.filter(p => {
+  const trashProfiles = visibleSystemProfiles.filter((p) => {
     if (p.status !== "DELETED") return false;
     if (isPruned(p.deleted_at)) return false;
     return true;
   });
 
-  const trashLeaders = leaders.filter(l => {
+  const trashLeaders = leaders.filter((l) => {
     if (l.active !== false || !l.deleted_at) return false;
     if (isPruned(l.deleted_at)) return false;
     if (!isGlobal && l.branch !== userBranch) return false;
@@ -229,34 +300,42 @@ export function Approvals() {
 
   const trashCount = trashProfiles.length + trashLeaders.length;
 
-  const filteredProfiles = visibleSystemProfiles.filter(p => {
-    if (tab === "TRASH") {
-      return p.status === "DELETED" && !isPruned(p.deleted_at);
-    }
-    return p.status === tab;
-  }).filter(p => 
-    p.full_name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    p.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (p.branch_name && p.branch_name.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filteredProfiles = visibleSystemProfiles
+    .filter((p) => {
+      if (tab === "TRASH") {
+        return p.status === "DELETED" && !isPruned(p.deleted_at);
+      }
+      return p.status === tab;
+    })
+    .filter(
+      (p) =>
+        p.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (p.branch_name &&
+          p.branch_name.toLowerCase().includes(searchTerm.toLowerCase())),
+    );
 
-  const visiblePasswordRequests = passwordRequests.filter(req => 
-    isProfileVisibleToApprover(req.role, req.branchName)
-  ).filter(req => 
-    req.userEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (req.branchName && req.branchName.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const visiblePasswordRequests = passwordRequests
+    .filter((req) => isProfileVisibleToApprover(req.role, req.branchName))
+    .filter(
+      (req) =>
+        req.userEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (req.branchName &&
+          req.branchName.toLowerCase().includes(searchTerm.toLowerCase())),
+    );
 
-  const pendingPasswordCount = passwordRequests.filter(req => 
-    req.status === "PENDING" && isProfileVisibleToApprover(req.role, req.branchName)
+  const pendingPasswordCount = passwordRequests.filter(
+    (req) =>
+      req.status === "PENDING" &&
+      isProfileVisibleToApprover(req.role, req.branchName),
   ).length;
 
   const handleApprovePassword = async (req: any) => {
     try {
       if (req.newPassword) {
-         // Create admin supabase client with service role? No, we don't have this.
-         // We'll mock it for now since we can't update other users without edge function
-         console.warn("Mocking password update for: ", req.userEmail);
+        // Create admin supabase client with service role? No, we don't have this.
+        // We'll mock it for now since we can't update other users without edge function
+        console.warn("Mocking password update for: ", req.userEmail);
       }
       updatePasswordRequestStatus(req.id, "APPROVED");
 
@@ -266,10 +345,13 @@ export function Approvals() {
         await EmailService.sendPasswordResultEmail(
           req.userEmail,
           cleanName,
-          req.newPassword || "RESET_COMPLETED_ACCESS_RESTORED"
+          req.newPassword || "RESET_COMPLETED_ACCESS_RESTORED",
         );
       } catch (mailError) {
-        console.error("Failed to compile/send password clearance notification:", mailError);
+        console.error(
+          "Failed to compile/send password clearance notification:",
+          mailError,
+        );
       }
     } catch (e: any) {
       console.error(e);
@@ -284,8 +366,12 @@ export function Approvals() {
             <Key className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-white m-0">Access Approvals</h1>
-            <p className="text-lilac/80 font-medium">Manage platform access, roles, and registrations</p>
+            <h1 className="text-2xl font-bold tracking-tight text-white m-0">
+              Access Approvals
+            </h1>
+            <p className="text-lilac/80 font-medium">
+              Manage platform access, roles, and registrations
+            </p>
           </div>
         </div>
 
@@ -296,7 +382,11 @@ export function Approvals() {
             className="self-start md:self-auto flex items-center gap-2 bg-rose-500/10 hover:bg-rose-500/20 active:bg-rose-500/30 text-rose-400 border border-rose-500/30 rounded-xl px-4 py-2 text-xs font-bold font-sans transition-all shadow-md cursor-pointer disabled:opacity-50"
           >
             <Trash2 className="w-3.5 h-3.5" />
-            {purging ? "Purging..." : purgeSuccess ? "Demo Seed Purged ✔" : "Remove Demo Seed Data"}
+            {purging
+              ? "Purging..."
+              : purgeSuccess
+                ? "Demo Seed Purged ✔"
+                : "Remove Demo Seed Data"}
           </button>
         )}
       </div>
@@ -306,29 +396,39 @@ export function Approvals() {
           <button
             onClick={() => setTab("PENDING")}
             className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold tracking-wide transition-all ${
-              tab === "PENDING" ? "bg-royal-purple text-white shadow-lg" : "text-lilac hover:text-white"
+              tab === "PENDING"
+                ? "bg-royal-purple text-white shadow-lg"
+                : "text-lilac hover:text-white"
             }`}
           >
             Pending Requests
             {pendingCount > 0 && (
-              <span className="bg-rose-500 text-white text-[10px] px-2 py-0.5 rounded-full">{pendingCount}</span>
+              <span className="bg-rose-500 text-white text-[10px] px-2 py-0.5 rounded-full">
+                {pendingCount}
+              </span>
             )}
           </button>
           <button
             onClick={() => setTab("PASSWORDS")}
             className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold tracking-wide transition-all ${
-              tab === "PASSWORDS" ? "bg-royal-purple text-white shadow-lg" : "text-lilac hover:text-white"
+              tab === "PASSWORDS"
+                ? "bg-royal-purple text-white shadow-lg"
+                : "text-lilac hover:text-white"
             }`}
           >
             Password Requests
             {pendingPasswordCount > 0 && (
-              <span className="bg-amber-500 text-black text-[10px] px-2 py-0.5 rounded-full">{pendingPasswordCount}</span>
+              <span className="bg-amber-500 text-black text-[10px] px-2 py-0.5 rounded-full">
+                {pendingPasswordCount}
+              </span>
             )}
           </button>
           <button
             onClick={() => setTab("APPROVED")}
             className={`flex-1 sm:flex-none px-6 py-2.5 rounded-lg text-sm font-bold tracking-wide transition-all ${
-              tab === "APPROVED" ? "bg-royal-purple text-white shadow-lg" : "text-lilac hover:text-white"
+              tab === "APPROVED"
+                ? "bg-royal-purple text-white shadow-lg"
+                : "text-lilac hover:text-white"
             }`}
           >
             Active Users
@@ -336,12 +436,16 @@ export function Approvals() {
           <button
             onClick={() => setTab("TRASH")}
             className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold tracking-wide transition-all ${
-              tab === "TRASH" ? "bg-royal-purple text-white shadow-lg" : "text-lilac hover:text-white"
+              tab === "TRASH"
+                ? "bg-royal-purple text-white shadow-lg"
+                : "text-lilac hover:text-white"
             }`}
           >
             Trash Bin (30d)
             {trashCount > 0 && (
-              <span className="bg-[#f43f5e] text-white text-[10px] px-2 py-0.5 rounded-full font-sans">{trashCount}</span>
+              <span className="bg-[#f43f5e] text-white text-[10px] px-2 py-0.5 rounded-full font-sans">
+                {trashCount}
+              </span>
             )}
           </button>
         </div>
@@ -359,14 +463,18 @@ export function Approvals() {
       </div>
 
       {loading && tab !== "PASSWORDS" ? (
-        <div className="text-center py-12 text-lilac font-medium tracking-wide animate-pulse">Loading profiles...</div>
+        <div className="text-center py-12 text-lilac font-medium tracking-wide animate-pulse">
+          Loading profiles...
+        </div>
       ) : tab === "PASSWORDS" ? (
         visiblePasswordRequests.length === 0 ? (
           <GlassCard className="p-12 flex flex-col items-center justify-center text-center">
             <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
               <Key className="w-8 h-8 text-white/20" />
             </div>
-            <h3 className="text-white font-bold text-lg mb-2">No password requests</h3>
+            <h3 className="text-white font-bold text-lg mb-2">
+              No password requests
+            </h3>
             <p className="text-lilac/70 text-sm">
               There are no pending password reset requests at this time.
             </p>
@@ -374,12 +482,23 @@ export function Approvals() {
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {visiblePasswordRequests.map((req) => (
-              <GlassCard key={req.id} className="p-5 flex flex-col justify-between hover:bg-white/5 transition-colors border-l-4" style={{borderLeftColor: req.status === 'PENDING' ? '#f59e0b' : '#10b981'}}>
+              <GlassCard
+                key={req.id}
+                className="p-5 flex flex-col justify-between hover:bg-white/5 transition-colors border-l-4"
+                style={{
+                  borderLeftColor:
+                    req.status === "PENDING" ? "#f59e0b" : "#10b981",
+                }}
+              >
                 <div>
                   <div className="flex justify-between items-start mb-4">
                     <div>
-                      <h3 className="text-lg font-bold text-white leading-tight">{req.userEmail}</h3>
-                      <p className="text-sm text-amber-400 font-medium">Password Reset Request</p>
+                      <h3 className="text-lg font-bold text-white leading-tight">
+                        {req.userEmail}
+                      </h3>
+                      <p className="text-sm text-amber-400 font-medium">
+                        Password Reset Request
+                      </p>
                     </div>
                     <span className="px-3 py-1 rounded bg-black/40 text-[10px] font-bold text-lilac uppercase tracking-widest border border-white/10">
                       {req.status}
@@ -394,21 +513,29 @@ export function Approvals() {
                     )}
                     <div className="flex items-center gap-2 col-span-2">
                       <Users className="w-4 h-4 text-emerald-400" />
-                      <span>Role: {req.role.split(',').map(r => r.replace(/_/g, ' ')).join(' & ')}</span>
+                      <span>
+                        Role:{" "}
+                        {req.role
+                          .split(",")
+                          .map((r) => r.trim().replace(/_/g, " "))
+                          .join(" & ")}
+                      </span>
                     </div>
                   </div>
                 </div>
                 <div className="flex gap-3 pt-4 border-t border-white/5">
                   {req.status === "PENDING" && (
                     <>
-                      <button 
+                      <button
                         onClick={() => handleApprovePassword(req)}
                         className="flex-1 flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-black px-4 py-2 rounded-lg font-bold text-sm transition-colors"
                       >
                         <Check className="w-4 h-4" /> Approve
                       </button>
-                      <button 
-                        onClick={() => updatePasswordRequestStatus(req.id, "REJECTED")}
+                      <button
+                        onClick={() =>
+                          updatePasswordRequestStatus(req.id, "REJECTED")
+                        }
                         className="flex items-center justify-center gap-2 bg-transparent border border-rose-500/50 text-rose-400 hover:bg-rose-500/20 px-4 py-2 rounded-lg font-bold text-sm transition-colors"
                       >
                         <X className="w-4 h-4" /> Reject
@@ -425,31 +552,55 @@ export function Approvals() {
           <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
             <Users className="w-8 h-8 text-white/20" />
           </div>
-          <h3 className="text-white font-bold text-lg mb-2">No {tab.toLowerCase()} users found</h3>
+          <h3 className="text-white font-bold text-lg mb-2">
+            No {tab.toLowerCase()} users found
+          </h3>
           <p className="text-lilac/70 text-sm">
-            {tab === "PENDING" ? "There are no pending registration requests at this time." : "There are no active users matching your criteria."}
+            {tab === "PENDING"
+              ? "There are no pending registration requests at this time."
+              : "There are no active users matching your criteria."}
           </p>
         </GlassCard>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {filteredProfiles.map((p) => (
-            <GlassCard key={p.id} className="p-5 flex flex-col justify-between hover:bg-white/5 transition-colors border-l-4" style={{borderLeftColor: tab === 'PENDING' ? '#f59e0b' : '#10b981'}}>
+            <GlassCard
+              key={p.id}
+              className="p-5 flex flex-col justify-between hover:bg-white/5 transition-colors border-l-4"
+              style={{
+                borderLeftColor: tab === "PENDING" ? "#f59e0b" : "#10b981",
+              }}
+            >
               <div>
                 <div className="flex justify-between items-start mb-4">
                   <div>
-                    <h3 className="text-lg font-bold text-white leading-tight">{p.full_name}</h3>
-                    <p className="text-sm text-emerald-400 font-medium">{p.email}</p>
+                    <h3 className="text-lg font-bold text-white leading-tight">
+                      {p.full_name}
+                    </h3>
+                    <p className="text-sm text-emerald-400 font-medium">
+                      {p.email}
+                    </p>
                   </div>
                   {tab === "PENDING" ? (
-                    <select 
+                    <select
                       value={roleOverrides[p.id] || p.role}
                       onChange={(e) => handleRoleChange(p.id, e.target.value)}
-                      className="px-2 py-1 rounded bg-black/40 text-[10px] font-bold text-lilac uppercase tracking-widest border border-white/10 focus:border-royal-purple focus:outline-none"
+                      className="px-2 py-1 rounded bg-black/40 text-[10px] font-bold text-lilac uppercase tracking-widest max-w-[200px] truncate border border-white/10 focus:border-royal-purple focus:outline-none"
                     >
-                      <option value="INTEREST_GROUP_LEADER">Interest Group Leader</option>
+                      <option value={roleOverrides[p.id] || p.role}>
+                        {(roleOverrides[p.id] || p.role)
+                          .split(",")
+                          .map((r: string) => r.trim().replace(/_/g, " "))
+                          .join(" & ")}
+                      </option>
+                      <option value="INTEREST_GROUP_LEADER">
+                        Interest Group Leader
+                      </option>
                       <option value="CELL_LEADER">Cell Leader</option>
+                      <option value="HOME_CELL_COORD">Home Cell Coordinator</option>
                       <option value="DEPT_LEADER">Dept Leader</option>
-                      {user?.role === "GLOBAL_ADMIN" && (
+                      <option value="FOUNDATION_SCHOOL">Foundation School</option>
+                      {(user?.role === "GLOBAL_ADMIN" || user?.roles?.includes("GLOBAL_ADMIN")) && (
                         <>
                           <option value="BRANCH_ADMIN">Branch Admin</option>
                           <option value="GLOBAL_ADMIN">Global Admin</option>
@@ -458,11 +609,14 @@ export function Approvals() {
                     </select>
                   ) : (
                     <span className="px-3 py-1 rounded bg-black/40 text-[10px] font-bold text-lilac uppercase tracking-widest border border-white/10">
-                      {p.role.split(',').map(r => r.replace(/_/g, ' ')).join(' & ')}
+                      {p.role
+                        .split(",")
+                        .map((r) => r.trim().replace(/_/g, " "))
+                        .join(" & ")}
                     </span>
                   )}
                 </div>
-                
+
                 <div className="grid grid-cols-2 gap-y-3 gap-x-4 mb-6">
                   {p.branch_name && (
                     <div className="flex items-center gap-2 text-sm text-lavender">
@@ -491,13 +645,13 @@ export function Approvals() {
               <div className="flex gap-3 pt-4 border-t border-white/5">
                 {tab === "PENDING" ? (
                   <>
-                    <button 
+                    <button
                       onClick={() => handleUpdateStatus(p.id, "APPROVED")}
                       className="flex-1 flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-black px-4 py-2 rounded-lg font-bold text-sm transition-colors"
                     >
                       <Check className="w-4 h-4" /> Approve Access
                     </button>
-                    <button 
+                    <button
                       onClick={() => handleUpdateStatus(p.id, "REJECTED")}
                       className="flex items-center justify-center gap-2 bg-transparent border border-rose-500/50 text-rose-400 hover:bg-rose-500/20 px-4 py-2 rounded-lg font-bold text-sm transition-colors"
                     >
@@ -505,11 +659,12 @@ export function Approvals() {
                     </button>
                   </>
                 ) : (
-                  <button 
+                  <button
                     onClick={() => handleRevokeProfile(p)}
                     className="flex w-full items-center justify-center gap-2 bg-transparent border border-rose-500/30 text-rose-400 hover:bg-rose-500/20 hover:border-rose-500/50 px-4 py-2 rounded-lg font-bold text-sm transition-all cursor-pointer font-sans"
                   >
-                    <UserMinus className="w-4 h-4" /> Revoke Access / Remove (30d soft)
+                    <UserMinus className="w-4 h-4" /> Revoke Access / Remove
+                    (30d soft)
                   </button>
                 )}
               </div>
@@ -531,20 +686,32 @@ export function Approvals() {
                   🔒 Active Core Safeguard Protocol Enabled
                 </h3>
                 <p className="text-xs text-slate-300 leading-relaxed font-sans">
-                  The system enforces a strict 30-day soft-deletion window to guard against mistakes. Records are securely retained in an inactive, isolated state before permanent physical cleanup.
+                  The system enforces a strict 30-day soft-deletion window to
+                  guard against mistakes. Records are securely retained in an
+                  inactive, isolated state before permanent physical cleanup.
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-3 text-[11px] text-lilac/70 font-sans">
                   <div className="p-2.5 bg-black/30 rounded-xl border border-white/5 space-y-1">
-                    <span className="font-bold text-emerald-400 flex items-center gap-1"><Activity className="w-3.5 h-3.5" /> 100% Trace Auditing</span>
-                    All delete/restore operations register immutably in system activity logs.
+                    <span className="font-bold text-emerald-400 flex items-center gap-1">
+                      <Activity className="w-3.5 h-3.5" /> 100% Trace Auditing
+                    </span>
+                    All delete/restore operations register immutably in system
+                    activity logs.
                   </div>
                   <div className="p-2.5 bg-black/30 rounded-xl border border-white/5 space-y-1">
-                    <span className="font-bold text-amber-400 flex items-center gap-1"><Building className="w-3.5 h-3.5" /> City Expression Isolation</span>
-                    Branch leaders are securely restricted from managing datasets outside their scope.
+                    <span className="font-bold text-amber-400 flex items-center gap-1">
+                      <Building className="w-3.5 h-3.5" /> City Expression
+                      Isolation
+                    </span>
+                    Branch leaders are securely restricted from managing
+                    datasets outside their scope.
                   </div>
                   <div className="p-2.5 bg-black/30 rounded-xl border border-white/5 space-y-1">
-                    <span className="font-bold text-indigo-400 flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> Auto-Pruning</span>
-                    Objects beyond the 30-day restorable window are permanently fully pruned.
+                    <span className="font-bold text-indigo-400 flex items-center gap-1">
+                      <Calendar className="w-3.5 h-3.5" /> Auto-Pruning
+                    </span>
+                    Objects beyond the 30-day restorable window are permanently
+                    fully pruned.
                   </div>
                 </div>
               </div>
@@ -556,34 +723,53 @@ export function Approvals() {
               <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
                 <Trash2 className="w-8 h-8 text-white/20" />
               </div>
-              <h3 className="text-white font-bold text-lg mb-2">Trash Bin Is Empty</h3>
+              <h3 className="text-white font-bold text-lg mb-2">
+                Trash Bin Is Empty
+              </h3>
               <p className="text-lilac/70 text-sm max-w-sm leading-relaxed">
-                No soft-deleted user access profiles or group leaders detected for your city expression.
+                No soft-deleted user access profiles or group leaders detected
+                for your city expression.
               </p>
             </GlassCard>
           ) : (
             <div className="space-y-6">
               {trashProfiles.length > 0 && (
                 <div>
-                  <h4 className="text-xs font-bold text-slate-300 tracking-wider uppercase mb-3 px-1 font-sans">Trashed User Access Profiles ({trashProfiles.length})</h4>
+                  <h4 className="text-xs font-bold text-slate-300 tracking-wider uppercase mb-3 px-1 font-sans">
+                    Trashed User Access Profiles ({trashProfiles.length})
+                  </h4>
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     {trashProfiles.map((p) => (
-                      <GlassCard key={p.id} className="p-5 flex flex-col justify-between border-l-4 border-rose-500/50 hover:bg-white/5 transition-colors">
+                      <GlassCard
+                        key={p.id}
+                        className="p-5 flex flex-col justify-between border-l-4 border-rose-500/50 hover:bg-white/5 transition-colors"
+                      >
                         <div>
                           <div className="flex justify-between items-start mb-4">
                             <div>
-                              <h3 className="text-lg font-bold text-white leading-tight">{p.full_name}</h3>
-                              <p className="text-sm text-rose-400 font-medium font-sans">{p.email}</p>
+                              <h3 className="text-lg font-bold text-white leading-tight">
+                                {p.full_name}
+                              </h3>
+                              <p className="text-sm text-rose-400 font-medium font-sans">
+                                {p.email}
+                              </p>
                             </div>
                             <span className="px-2.5 py-0.5 rounded bg-rose-500/10 text-[10px] font-bold text-rose-300 uppercase tracking-widest border border-rose-500/20 flex items-center gap-1 font-sans">
-                              <AlertTriangle className="w-3 h-3" /> {getDaysRemainingStr(p.deleted_at)} left
+                              <AlertTriangle className="w-3 h-3" />{" "}
+                              {getDaysRemainingStr(p.deleted_at)} left
                             </span>
                           </div>
 
                           <div className="grid grid-cols-2 gap-y-3 gap-x-4 mb-4 text-sm font-sans">
                             <div className="flex items-center gap-2 text-lavender col-span-2">
                               <Building className="w-4 h-4 text-emerald-400" />
-                              <span>Original Role: {p.role.split(',').map(r => r.replace(/_/g, ' ')).join(' & ')}</span>
+                              <span>
+                                Original Role:{" "}
+                                {p.role
+                                  .split(",")
+                                  .map((r) => r.replace(/_/g, " "))
+                                  .join(" & ")}
+                              </span>
                             </div>
                             {p.branch_name && (
                               <div className="flex items-center gap-2 text-lavender">
@@ -593,17 +779,22 @@ export function Approvals() {
                             )}
                             <div className="flex items-center gap-2 text-lilac/70 col-span-2 text-xs border-t border-white/5 pt-2 mt-1">
                               <Calendar className="w-3.5 h-3.5 text-rose-400" />
-                              Deleted: {p.deleted_at ? new Date(p.deleted_at).toLocaleString() : "Recently"} by {p.deleted_by || "Admin"}
+                              Deleted:{" "}
+                              {p.deleted_at
+                                ? new Date(p.deleted_at).toLocaleString()
+                                : "Recently"}{" "}
+                              by {p.deleted_by || "Admin"}
                             </div>
                           </div>
                         </div>
 
                         <div className="pt-3 border-t border-white/5">
-                          <button 
+                          <button
                             onClick={() => handleRestoreProfile(p)}
                             className="w-full flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-black px-4 py-2.5 rounded-lg font-bold text-sm transition-colors cursor-pointer font-sans"
                           >
-                            <RotateCcw className="w-4 h-4" /> Restore Access & Login Profile
+                            <RotateCcw className="w-4 h-4" /> Restore Access &
+                            Login Profile
                           </button>
                         </div>
                       </GlassCard>
@@ -614,18 +805,28 @@ export function Approvals() {
 
               {trashLeaders.length > 0 && (
                 <div className="pt-4">
-                  <h4 className="text-xs font-bold text-slate-300 tracking-wider uppercase mb-3 px-1 font-sans">Trashed Directory Group Leaders ({trashLeaders.length})</h4>
+                  <h4 className="text-xs font-bold text-slate-300 tracking-wider uppercase mb-3 px-1 font-sans">
+                    Trashed Directory Group Leaders ({trashLeaders.length})
+                  </h4>
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     {trashLeaders.map((l) => (
-                      <GlassCard key={l.id} className="p-5 flex flex-col justify-between border-l-4 border-amber-500/50 hover:bg-white/5 transition-colors">
+                      <GlassCard
+                        key={l.id}
+                        className="p-5 flex flex-col justify-between border-l-4 border-amber-500/50 hover:bg-white/5 transition-colors"
+                      >
                         <div>
                           <div className="flex justify-between items-start mb-4">
                             <div>
-                              <h3 className="text-lg font-bold text-white leading-tight">{l.name}</h3>
-                              <p className="text-sm text-amber-400 font-medium font-sans">{l.group_name} ({l.role})</p>
+                              <h3 className="text-lg font-bold text-white leading-tight">
+                                {l.name}
+                              </h3>
+                              <p className="text-sm text-amber-400 font-medium font-sans">
+                                {l.group_name} ({l.role})
+                              </p>
                             </div>
                             <span className="px-2.5 py-0.5 rounded bg-amber-500/10 text-[10px] font-bold text-amber-300 uppercase tracking-widest border border-amber-500/20 flex items-center gap-1 font-sans">
-                              <AlertTriangle className="w-3 h-3" /> {getDaysRemainingStr(l.deleted_at)} left
+                              <AlertTriangle className="w-3 h-3" />{" "}
+                              {getDaysRemainingStr(l.deleted_at)} left
                             </span>
                           </div>
 
@@ -636,21 +837,28 @@ export function Approvals() {
                             </div>
                             <div className="flex items-center gap-2 text-lavender">
                               <Globe className="w-4 h-4 text-purple-400" />
-                              <span>Location: {l.location || 'HQ'}</span>
+                              <span>Location: {l.location || "HQ"}</span>
                             </div>
                             <div className="flex items-center gap-2 text-lilac/70 col-span-2 text-xs border-t border-white/5 pt-2 mt-1">
                               <Calendar className="w-3.5 h-3.5 text-amber-400" />
-                              Deleted: {l.deleted_at ? new Date(l.deleted_at).toLocaleString() : "Recently"} by {l.deleted_by || "Admin"}
+                              Deleted:{" "}
+                              {l.deleted_at
+                                ? new Date(l.deleted_at).toLocaleString()
+                                : "Recently"}{" "}
+                              by {l.deleted_by || "Admin"}
                             </div>
                           </div>
                         </div>
 
                         <div className="pt-3 border-t border-white/5 font-sans">
-                          <button 
-                            onClick={() => handleRestoreLeader_local(l.id, l.name)}
+                          <button
+                            onClick={() =>
+                              handleRestoreLeader_local(l.id, l.name)
+                            }
                             className="w-full flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-black px-4 py-2.5 rounded-lg font-bold text-sm transition-colors cursor-pointer font-sans"
                           >
-                            <RotateCcw className="w-4 h-4" /> Restore Group Leader to Directory
+                            <RotateCcw className="w-4 h-4" /> Restore Group
+                            Leader to Directory
                           </button>
                         </div>
                       </GlassCard>

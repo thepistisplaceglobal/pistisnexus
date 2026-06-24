@@ -2,10 +2,11 @@ import { useState, useEffect } from "react";
 import { useAppStore } from "@/store/useAppStore";
 import { MetricCard } from "@/components/ui/MetricCard";
 import { InsightCard } from "@/components/ui/InsightCard";
-import { Filter, Home, MapPin, Users, Plus, Trash2, X, Mail, Send } from "lucide-react";
+import { Filter, Home, MapPin, Users, Plus, Trash2, X, Mail, Send, ShieldAlert } from "lucide-react";
 import { ReportingWidget } from "@/components/ui/ReportingWidget";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { UnitMembersManager } from "@/components/UnitMembersManager";
+import { Link } from "react-router-dom";
 
 interface HomeCell {
   id: string;
@@ -183,6 +184,16 @@ export function HomeCells() {
               <MapPin className="w-3.5 h-3.5 text-emerald-400" />
               Branch: {userBranch}
             </span>
+          )}
+
+          {isCoordinator && (
+            <Link 
+              to="/approvals"
+              className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-black font-bold px-4 py-2.5 rounded-lg text-sm transition-all shadow-lg cursor-pointer"
+            >
+              <ShieldAlert className="w-4 h-4" />
+              <span>Review Approvals</span>
+            </Link>
           )}
 
           {hasManagementPrivilege && (

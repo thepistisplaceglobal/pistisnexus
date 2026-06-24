@@ -635,9 +635,9 @@ export function Dashboard() {
           isMatch = true;
         } else if (user?.role === 'CELL_LEADER' && report.unit_type === 'CELL' && report.unit_name === user.groupName) {
           isMatch = true;
-        } else if (user?.role === 'INTEREST_GROUP_LEADER' && report.unit_type === 'INTEREST' && report.unit_name === user.groupName) {
+        } else if (user?.role === 'INTEREST_GROUP_LEADER' && report.unit_type === 'INTEREST_GROUP' && report.unit_name === user.groupName) {
           isMatch = true;
-        } else if (user?.role === 'FOUNDATION_SCHOOL' && report.unit_type === 'FOUNDATION_SCHOOL') {
+        } else if (user?.role === 'FOUNDATION_SCHOOL' && report.unit_type === 'DEPT' && report.unit_name === 'Foundation School') {
           isMatch = true;
         } else if (user?.role === 'HOME_CELL_COORD' && report.unit_type === 'CELL' && report.branch_name === user.branchName) {
           isMatch = true;

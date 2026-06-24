@@ -8,7 +8,7 @@ import { AnimatePresence, motion } from "motion/react";
 const allItems = [
   { path: "/", label: "Hub", icon: LayoutDashboard, roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN", "DEPT_LEADER", "CELL_LEADER", "INTEREST_GROUP_LEADER", "FOUNDATION_SCHOOL", "HOME_CELL_COORD"] },
   { path: "/branches", label: "Branches", icon: Network, roles: ["GLOBAL_ADMIN"] },
-  { path: "/approvals", label: "Apps", icon: Key, roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN"] },
+  { path: "/approvals", label: "Apps", icon: Key, roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN", "HOME_CELL_COORD"] },
   { path: "/finance", label: "Finance", icon: Wallet, roles: ["DEPT_LEADER", "CELL_LEADER", "INTEREST_GROUP_LEADER"] },
   { path: "/departments", label: "Depts", icon: Users, roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN", "DEPT_LEADER"] },
   { path: "/homecells", label: "Cells", icon: Home, roles: ["GLOBAL_ADMIN", "BRANCH_ADMIN", "HOME_CELL_COORD"] },
@@ -40,24 +40,37 @@ export function BottomNav() {
     }
   }, [user, fetchProfiles]);
 
-  const getRoutingKey = (roleStr: string) => {
-    return (roleStr.includes("GLOBAL_ADMIN") || roleStr.includes("BRANCH_ADMIN")) ? "GLOBAL" : "BRANCH";
-  };
-
   const isProfileVisibleToApprover = (profileRoleStr?: string, profileBranch?: string) => {
     if (!user) return false;
-    const routingKey = getRoutingKey(profileRoleStr || "");
+    
+    const pRoles = profileRoleStr ? profileRoleStr.split(',') : [];
+    const globalRolesList = ["GLOBAL_ADMIN", "BRANCH_ADMIN"];
+    const branchRolesList = ["DEPT_LEADER", "CELL_LEADER", "INTEREST_GROUP_LEADER", "FOUNDATION_SCHOOL", "HOME_CELL_COORD"];
+
+    const hasAnyGlobal = pRoles.some(r => globalRolesList.includes(r.trim()));
+    const hasAnyBranch = pRoles.some(r => branchRolesList.includes(r.trim()));
+
     const userRoles = user.roles || [user.role];
 
-    if (userRoles.includes("GLOBAL_ADMIN")) {
-      return routingKey === "GLOBAL";
+    let canSee = false;
+
+    if (userRoles.includes("GLOBAL_ADMIN") && hasAnyGlobal) {
+      canSee = true;
     }
 
-    if (userRoles.includes("BRANCH_ADMIN") && profileBranch === user.branchName) {
-      return routingKey === "BRANCH";
+    if (userRoles.includes("BRANCH_ADMIN") && profileBranch === user.branchName && hasAnyBranch) {
+      canSee = true;
     }
 
-    return false;
+    if (
+      userRoles.includes("HOME_CELL_COORD") &&
+      profileBranch === user.branchName &&
+      pRoles.some((r) => r.trim() === "CELL_LEADER")
+    ) {
+      canSee = true;
+    }
+
+    return canSee;
   };
 
   const passwordRequests = useAppStore(state => state.passwordRequests) || [];

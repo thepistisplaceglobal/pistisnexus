@@ -152,21 +152,33 @@ export class NotificationService {
     const { id, full_name, role, branch_name, status } = record;
 
     if (eventType === 'INSERT' && status === 'PENDING') {
-      const getRoutingKey = (roleStr: string) => {
-        return (roleStr.includes("GLOBAL_ADMIN") || roleStr.includes("BRANCH_ADMIN")) ? "GLOBAL" : "BRANCH";
-      };
+      const pRoles = role ? role.split(',') : [];
+      const globalRolesList = ["GLOBAL_ADMIN", "BRANCH_ADMIN"];
+      const branchRolesList = ["DEPT_LEADER", "CELL_LEADER", "INTEREST_GROUP_LEADER", "FOUNDATION_SCHOOL", "HOME_CELL_COORD"];
+
+      const hasAnyGlobal = pRoles.some((r: string) => globalRolesList.includes(r.trim()));
+      const hasAnyBranch = pRoles.some((r: string) => branchRolesList.includes(r.trim()));
       
-      const routingKey = getRoutingKey(role || "");
       const userRoles = currentUser.roles || [currentUser.role];
       
-      if (routingKey === "GLOBAL" && userRoles.includes("GLOBAL_ADMIN")) {
+      if (hasAnyGlobal && userRoles.includes("GLOBAL_ADMIN")) {
         this.sendLocalNotification("New Leader Registration", {
           body: `${full_name} has registered for ${role.replace(/_/g, ' ')} and is awaiting approval.`,
           tag: `profile-registration-${id}`
         });
-      } else if (routingKey === "BRANCH" && userRoles.includes("BRANCH_ADMIN") && currentUser.branchName === branch_name) {
+      }
+      
+      if (hasAnyBranch && userRoles.includes("BRANCH_ADMIN") && currentUser.branchName === branch_name) {
         this.sendLocalNotification("New Unit Leader Registration", {
           body: `${full_name} has registered for ${role.replace(/_/g, ' ')} in ${branch_name} and is awaiting your approval.`,
+          tag: `profile-registration-${id}`
+        });
+      }
+
+      const hasAnyCell = pRoles.some((r: string) => r.trim() === "CELL_LEADER");
+      if (hasAnyCell && userRoles.includes("HOME_CELL_COORD") && currentUser.branchName === branch_name) {
+        this.sendLocalNotification("New Cell Leader Registration", {
+          body: `${full_name} has registered for Cell Leader in ${branch_name} and is awaiting your approval.`,
           tag: `profile-registration-${id}`
         });
       }

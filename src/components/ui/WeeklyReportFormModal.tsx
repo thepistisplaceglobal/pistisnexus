@@ -198,6 +198,63 @@ export function WeeklyReportFormModal({ isOpen, onClose }: WeeklyReportFormModal
     </>
   );
 
+  const renderFoundationSchoolFields = () => (
+    <>
+      <div className="space-y-4">
+        <h4 className="text-sm font-semibold text-lilac uppercase tracking-wider">Weekly Overview</h4>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {renderField("Goals for the week", "text")}
+          <div className="md:col-span-2">
+            {renderField("Execution and achievements", "textarea")}
+          </div>
+          {renderField("Challenges encountered", "text")}
+          {renderField("What's the way out", "text")}
+        </div>
+      </div>
+
+      <div className="space-y-4 pt-4 border-t border-white/10 mt-4">
+        <h4 className="text-sm font-semibold text-lilac uppercase tracking-wider">Classes & Attendance</h4>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+          <div className="flex flex-col gap-1.5 md:col-span-2">
+            <label className="text-xs text-lavender/70 font-medium">Did Foundation School hold classes this week (e.g. Sunday/Tuesday)?</label>
+            <div className="flex gap-4">
+              <label className="flex items-center gap-2 text-white text-sm">
+                <input type="radio" name="fsMeetingHeld" value="Yes" checked={meetingHeld === "Yes"} onChange={() => setMeetingHeld("Yes")} className="accent-royal-purple" /> Yes
+              </label>
+              <label className="flex items-center gap-2 text-white text-sm">
+                <input type="radio" name="fsMeetingHeld" value="No" checked={meetingHeld === "No"} onChange={() => setMeetingHeld("No")} className="accent-royal-purple" /> No
+              </label>
+            </div>
+          </div>
+          {meetingHeld === "No" && (
+            <div className="md:col-span-2">
+              {renderField("If No, why?", "text")}
+            </div>
+          )}
+          {meetingHeld === "Yes" && (
+            <>
+              {renderField("Modules taught this week", "text")}
+              {renderField("Number of teachers/facilitators present", "number")}
+              {renderField("Number of students present (Sunday)", "number")}
+              {renderField("Number of students present (Tuesday/Other)", "number")}
+              <div className="md:col-span-2">
+                {renderField("Summary of class activities", "textarea")}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      <div className="space-y-4 pt-4 border-t border-white/10 mt-4">
+        <h4 className="text-sm font-semibold text-lilac uppercase tracking-wider">Additional Information</h4>
+        <div className="grid grid-cols-1 gap-4 mt-2">
+          {renderField("Are there needs or concerns for Foundation School that you'd like the ministry to know about?", "textarea")}
+          {renderField("What are your goals for next week?", "textarea")}
+        </div>
+      </div>
+    </>
+  );
+
   const renderCellFields = () => (
     <>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-white/10 mt-2">
@@ -311,7 +368,8 @@ export function WeeklyReportFormModal({ isOpen, onClose }: WeeklyReportFormModal
             </div>
 
             <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-8 flex flex-col gap-6">
-              {(role === "DEPT_LEADER" || role === "FOUNDATION_SCHOOL") && renderDepartmentFields()}
+              {role === "DEPT_LEADER" && renderDepartmentFields()}
+              {role === "FOUNDATION_SCHOOL" && renderFoundationSchoolFields()}
               {role === "CELL_LEADER" && renderCellFields()}
               {role === "INTEREST_GROUP_LEADER" && renderInterestGroupFields()}
             </form>
